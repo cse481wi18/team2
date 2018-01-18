@@ -1,7 +1,9 @@
 #! /usr/bin/env python
 
-# TODO: import ?????????
-# TODO: import ???????_msgs.msg
+from control_msgs.msg import GripperCommandGoal
+from control_msgs.msg import GripperCommandAction
+
+import actionlib
 import rospy
 
 # TODO: ACTION_NAME = ???
@@ -18,7 +20,8 @@ class Gripper(object):
     def __init__(self):
         # TODO: Create actionlib client
         # TODO: Wait for server
-        pass
+        self.client = actionlib.SimpleActionClient('gripper_controller/gripper_action', GripperCommandAction)
+        self.client.wait_for_server()
 
     def open(self):
         """Opens the gripper.
@@ -26,7 +29,10 @@ class Gripper(object):
         # TODO: Create goal
         # TODO: Send goal
         # TODO: Wait for result
-        rospy.logerr('Not implemented.')
+        goal = GripperCommandGoal()
+        goal.command.position = OPENED_POS
+        self.client.send_goal(goal)
+        self.client.wait_for_result(rospy.Duration.from_sec(5.0))
 
     def close(self, max_effort=MAX_EFFORT):
         """Closes the gripper.
@@ -38,4 +44,8 @@ class Gripper(object):
         # TODO: Create goal
         # TODO: Send goal
         # TODO: Wait for result
-        rospy.logerr('Not implemented.')
+        goal = GripperCommandGoal()
+        goal.command.position = CLOSED_POS
+        goal.command.max_effort = max_effort
+        self.client.send_goal(goal)
+        self.client.wait_for_result(rospy.Duration.from_sec(5.0))
