@@ -67,8 +67,6 @@ class Head(object):
         goal.target.point = Point(x, y, z)
         goal.target.header.frame_id = frame_id
 
-        print goal
-
         self.lookClient.send_goal(goal)
         self.lookClient.wait_for_result(rospy.Duration.from_sec(5.0))
 

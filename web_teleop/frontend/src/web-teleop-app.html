@@ -1,5 +1,6 @@
 <link rel="import" href="../bower_components/polymer/polymer-element.html">
 <link rel="import" href="../bower_components/ros-websocket/ros-websocket.html">
+<link rel="import" href="../bower_components/ros-topic/ros-topic.html">
 
 <dom-module id="web-teleop-app">
   <template>
@@ -8,7 +9,28 @@
         display: block;
       }
     </style>
-    <h2>Hello [[prop1]]!</h2>
+
+    <ros-websocket auto ros="{{ros}}"
+      url="{{url}}"
+      on-connection="_handleConnection"
+      on-close="_handleClose"
+      on-error="_handleError">
+    </ros-websocket>
+
+    <ros-topic auto ros="{{ros}}"
+      topic="joint_state_republisher/torso_lift_joint"
+      msg-type="std_msgs/Float64"
+      on-message="_handleTorsoHeight"
+    ></ros-topic>
+
+    [[hello]]
+    <h1>Fetch teleop</h1>
+    <p>
+      Status: [[status]]
+    </p>
+    <p>    
+      Torso height: [[torsoHeightApprox]] meters
+    </p>
   </template>
 
   <script>
@@ -20,43 +42,34 @@
       static get is() { return 'web-teleop-app'; }
       static get properties() {
         return {
-          prop1: {
+          hello: {
             type: String,
-            value: 'web-teleop-app'
+            value: 'Hello world!'
+          },
+          torsoHeightApprox: {
+              type: String,
+              value: '???'
           }
         };
       }
-    }
-
-    window.customElements.define(WebTeleopApp.is, WebTeleopApp);
-
-    static get properties() {
-      return {};     
-    }        
                
-    _handleConnection() {
-      this.status = 'Connected to the websocket server.';
-      console.log(this.status);
+      _handleConnection() {
+        this.status = 'Connected to the websocket server.';
+        console.log(this.status);
+      }
+      _handleClose() {
+        this.status = 'Closed connection to the websocket server.';
+        console.log(this.status);
+      }
+      _handleError() {
+        this.status = 'Error connecting to the websocket server.';
+        console.log(this.status);
+      }
+      _handleTorsoHeight(event) {
+        this.torsoHeightApprox = event.detail.data.toFixed(3);
+        console.log(event);
+      }
     }
-    _handleClose() {
-      this.status = 'Closed connection to the websocket server.';
-      console.log(this.status);
-    }
-    _handleError() {
-      this.status = 'Error connecting to the websocket server.';
-      console.log(this.status);
-    }
-
+    window.customElements.define(WebTeleopApp.is, WebTeleopApp);
   </script>
-
-  <ros-websocket auto ros="{{ros}}"
-    url="{{url}}"
-    on-connection="_handleConnection"
-    on-close="_handleClose"
-    on-error="_handleError">
-  </ros-websocket>
-
-  <h1>Fetch teleop</h1>
-  [[status]]
-
 </dom-module>
