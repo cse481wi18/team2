@@ -1,5 +1,13 @@
 <launch>
   <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+  <!--<include file="$(find fetch_gazebo)/launch/playground.launch" />-->
+  <node pkg="rviz" type="rviz" name="$(anon rviz)" args="-d /home/team2/.rviz/myconfig.rviz" />
   <node pkg="web_teleop" type="joint_state_republisher.py" name="joint_state_republisher" />
-  <!--<node pkg="web_teleop" type="actuators_node.py" name="web_teleop_actuators" />-->
+  <node pkg="web_teleop" type="torso_actuators_node.py" name="web_teleop_torso_actuators" />
+  <node pkg="web_teleop" type="arms_actuators_node.py" name="web_teleop_arms_actuators" />
+  <node pkg="web_teleop" type="head_actuators_node.py" name="web_teleop_head_actuators" />
+  <node pkg="web_teleop" type="gripper_actuators_node.py" name="web_teleop_gripper_actuators" />
+  <node pkg="web_video_server" type="web_video_server" name="web_video_server">
+    <param name="port" value="8000" />
+  </node>
 </launch>

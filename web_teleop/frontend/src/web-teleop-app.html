@@ -1,12 +1,33 @@
 <link rel="import" href="../bower_components/polymer/polymer-element.html">
 <link rel="import" href="../bower_components/ros-websocket/ros-websocket.html">
 <link rel="import" href="../bower_components/ros-topic/ros-topic.html">
+<link rel="import" href="../bower_components/ros-service/ros-service.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">    
+<link rel="import" href="../bower_components/paper-slider/paper-slider.html">
+<link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
 
 <dom-module id="web-teleop-app">
   <template>
+    <style is="custom-style" include="iron-flex"></style>
     <style>
       :host {
         display: block;
+      }
+      paper-slider {                                                             
+        --paper-slider-input: {                                                  
+          width: 100px;                                                          
+        }                                                                        
+      }                                                                          
+      paper-button {                                                             
+        background-color: #eee;  
+        user-select: none;                               
+      }
+      #driving {
+        display: inline-block;
+      }
+      #camera img {
+        float: right;
+        height: 900px;
       }
     </style>
 
@@ -23,14 +44,128 @@
       on-message="_handleTorsoHeight"
     ></ros-topic>
 
+    <ros-topic
+      id="baseTopic"
+      ros="{{ros}}"
+      topic="cmd_vel"
+      msg-type="geometry_msgs/Twist"
+    ></ros-topic>
+
+    <ros-service                                                                 
+      id="torsoService"
+      on-response="_torsoSuccess"
+      on-fail="_torsoError"
+      name="/web_teleop/set_torso"
+      ros="{{ros}}"
+      service-type="web_teleop/SetTorso"
+    ></ros-service>
+
+    <ros-service                                                                 
+      id="armsService"
+      on-response="_armsSuccess"
+      on-fail="_armsError"
+      name="/web_teleop/set_arm"
+      ros="{{ros}}"
+      service-type="web_teleop/SetArm"
+    ></ros-service>
+
+    <ros-service                                                                 
+      id="headService"
+      on-response="_headSuccess"
+      on-fail="_headError"
+      name="/web_teleop/set_head"
+      ros="{{ros}}"
+      service-type="web_teleop/SetHead"
+    ></ros-service>
+
+    <ros-service                                                                 
+      id="gripperService"
+      on-response="_gripperSuccess"
+      on-fail="_gripperError"
+      name="/web_teleop/set_gripper"
+      ros="{{ros}}"
+      service-type="web_teleop/SetGripper"
+    ></ros-service>
+
     [[hello]]
     <h1>Fetch teleop</h1>
     <p>
       Status: [[status]]
     </p>
+    <div id="camera">
+      <img src="//[[hostname]]:8000/stream?topic=/head_camera/rgb/image_raw"></img>
+    </div>
     <p>    
       Torso height: [[torsoHeightApprox]] meters
-    </p>
+    </p>                                           
+    
+
+    <div class="layout horizontal center">   
+      TORSO:                                    
+      <paper-slider on-value-changed="_torsoSet" min="0" max="0.4" step="0.01" editable                       
+        value="{{sliderValueTorso}}"></paper-slider>                           
+      <paper-button on-tap="_setTorso">Set torso</paper-button>                                     
+    </div> 
+    <div class="layout horizontal center">   
+      HEAD:                                    
+      <paper-slider on-value-changed="_headSet" min="-1.57" max="1.57" step="0.01" editable                       
+        value="{{sliderValueHead}}"></paper-slider>                           
+      <paper-button on-tap="_setHead">Set head</paper-button>                                     
+    </div>       
+    <div class="layout horizontal center">   
+      Gripper:                                    
+      <paper-slider on-value-changed="_gripperSet" min="-1" max="40" step="1" editable                       
+        value="{{sliderValueGripper}}"></paper-slider>                           
+      <paper-button on-tap="_setGripper">Set gripper</paper-button>                                     
+    </div>                                          
+    <div class="layout horizontal center">   
+      SHOULDER PAN:                                    
+      <paper-slider on-value-changed="_armsSetShoulderPan" min="-1.57" max="1.57" step="0.01" editable                       
+        value="{{sliderValueArmsShoulderPan}}"></paper-slider>                           
+      <paper-button on-tap="_setTorso">Set shoulder pan</paper-button>                                     
+    </div>                                       
+    <div class="layout horizontal center">   
+      SHOULDER LIFT:                                    
+      <paper-slider on-value-changed="_armsSetShoulderLift" min="-1.57" max="1.57" step="0.01" editable                       
+        value="{{sliderValueArmsShoulderLift}}"></paper-slider>                           
+      <paper-button on-tap="_setTorso">Set shoulder lift</paper-button>                                     
+    </div>        
+    <div class="layout horizontal center">   
+      UPPERARM ROLL:                                    
+      <paper-slider on-value-changed="_armsSetUpperarmRoll" min="-3.14" max="3.14" step="0.01" editable                       
+        value="{{sliderValueArmsUpperarmRoll}}"></paper-slider>                           
+      <paper-button on-tap="_setTorso">Set upperarm roll</paper-button>                                     
+    </div>
+    <div class="layout horizontal center">   
+      ELBOW FLEX:                                    
+      <paper-slider on-value-changed="_armsSetElbowFlex" min="-1.57" max="1.57" step="0.01" editable                       
+        value="{{sliderValueArmsElbowFlex}}"></paper-slider>                           
+      <paper-button on-tap="_setTorso">Set elbow flex</paper-button>                                     
+    </div>
+    <div class="layout horizontal center">   
+      WRIST FLEX:                                    
+      <paper-slider on-value-changed="_armsSetWristFlex" min="-1.57" max="1.57" step="0.01" editable                       
+        value="{{sliderValueArmsWristFlex}}"></paper-slider>                           
+      <paper-button on-tap="_setTorso">Set wrist flex</paper-button>                                     
+    </div>
+    <div class="layout horizontal center">   
+      WRIST ROLL:                                    
+      <paper-slider on-value-changed="_armsSetWristRoll" min="-1.57" max="1.57" step="0.01" editable                       
+        value="{{sliderValueArmsWristRoll}}"></paper-slider>                           
+      <paper-button on-tap="_setTorso">Set wrist roll</paper-button>                                     
+    </div>
+    <div id="driving" class="layout vertical">
+      <div class="layout horizontal">
+        <div class="flex"></div>
+        <paper-button on-down="_startForward" on-up="_endBaseCommand">Forward</paper-button>
+        <div class="flex"></div>
+      </div>
+      <div class="layout horizontal">
+        <paper-button on-down="_startLeft" on-up="_endBaseCommand">Left</paper-button>
+        <paper-button on-down="_startBack" on-up="_endBaseCommand">Back</paper-button>
+        <paper-button on-down="_startRight" on-up="_endBaseCommand">Right</paper-button>
+      </div>
+    </div>
   </template>
 
   <script>
@@ -39,6 +174,21 @@
      * @polymer
      */
     class WebTeleopApp extends Polymer.Element {
+      constructor() {
+        super();
+        console.log("???");
+
+        this._torso = this.sliderHandlersTemplate("torso", "sliderValueTorso");
+        this._head = this.sliderHandlersTemplateHead("head", "sliderValueHead");
+        this._gripper = this.sliderHandlersTemplateGripper("gripper", "sliderValueGripper");
+        this._armsShoulderPan = this.sliderHandlersTemplateArms("arms", "sliderValueArmsShoulderPan", "set_shoulder_pan")
+        this._armsShoulderLift = this.sliderHandlersTemplateArms("arms", "sliderValueArmsShoulderLift", "set_shoulder_lift")
+        this._armsUpperarmRoll = this.sliderHandlersTemplateArms("arms", "sliderValueArmsUpperarmRoll", "set_upperarm_roll")
+        this._armsElbowFlex = this.sliderHandlersTemplateArms("arms", "sliderValueArmsElbowFlex", "set_elbow_flex")
+        this._armsWristFlex = this.sliderHandlersTemplateArms("arms", "sliderValueArmsWristFlex", "set_wrist_flex")
+        this._armsWristRoll = this.sliderHandlersTemplateArms("arms", "sliderValueArmsWristRoll", "set_wrist_roll")
+      }
+
       static get is() { return 'web-teleop-app'; }
       static get properties() {
         return {
@@ -51,6 +201,115 @@
               value: '???'
           }
         };
+      }
+
+      sliderHandlersTemplate(valueName, sliderVariableName) {
+        let lock = false;
+        return {
+          set: () => {
+            setTimeout(() => {
+              lock = true;
+              this.status = 'Setting ' + valueName + ' to ' + this[sliderVariableName] + ' meters...';
+              this.$.torsoService.call({height: this[sliderVariableName]});
+            }, 10)
+          },
+          onSuccess: () => {
+            this.status = 'Set ' + valueName + ' to ' + this[sliderVariableName] + ' meters.';
+            lock = false;
+          },
+          onError: (evt) => {
+            this.status = 'Error: ' + evt.detail;
+            lock = false;
+          }
+        }
+      }
+
+      sliderHandlersTemplateHead(valueName, sliderVariableName) {
+        let lock = false;
+        return {
+          set: () => {
+            setTimeout(() => {
+              lock = true;
+              this.status = 'Setting ' + valueName + ' to ' + this[sliderVariableName] + ' meters...';
+              this.$.headService.call({pan: 0.0, tilt: this[sliderVariableName]});
+            }, 10)
+          },
+          onSuccess: () => {
+            this.status = 'Set ' + valueName + ' to ' + this[sliderVariableName] + ' meters.';
+            lock = false;
+          },
+          onError: (evt) => {
+            this.status = 'Error: ' + evt.detail;
+            lock = false;
+          }
+        }
+      }
+
+      sliderHandlersTemplateGripper(valueName, sliderVariableName) {
+        let lock = false;
+        return {
+          set: () => {
+            setTimeout(() => {
+              lock = true;
+              this.status = 'Setting ' + valueName + ' to ' + this[sliderVariableName] + ' meters...';
+              this.$.gripperService.call({force: this[sliderVariableName], isClose: parseInt(this[sliderVariableName]) >= 0});
+            }, 10)
+          },
+          onSuccess: () => {
+            this.status = 'Set ' + valueName + ' to ' + this[sliderVariableName] + ' meters.';
+            lock = false;
+          },
+          onError: (evt) => {
+            this.status = 'Error: ' + evt.detail;
+            lock = false;
+          }
+        }
+      }
+
+      sliderHandlersTemplateArms(valueName, sliderVariableName, nodeName) {
+        let lock = false;
+        return {
+          set: () => {
+            setTimeout(() => {
+              lock = true;
+              this.status = 'Setting ' + valueName + ' ' + nodeName + ' to ' + this[sliderVariableName] + ' ...';
+              let temp = {value: this[sliderVariableName], node_name: nodeName};
+              console.log(temp);
+              this.$.armsService.call(temp);
+            }, 10)
+          },
+          onSuccess: () => {
+            this.status = 'Set ' + valueName + ' to ' + this[sliderVariableName] + ' meters.';
+            lock = false;
+          },
+          onError: (evt) => {
+            this.status = 'Error: ' + evt.detail;
+            lock = false;
+          }
+        }
+      }
+
+      _torsoSet() { this._torso.set() }
+      _torsoSuccess() { this._torso.onSuccess() }
+      _torsoError() { this._torso.onError() }
+      _headSet() { this._head.set() }
+      _headSuccess() { this._head.onSuccess() }
+      _headError() { this._head.onError() }
+      _gripperSet() { this._gripper.set() }
+      _gripperSuccess() { this._gripper.onSuccess() }
+      _gripperError() { this._gripper.onError() }
+      _armsSetShoulderPan() { this._armsShoulderPan.set() }
+      _armsSetShoulderLift() { this._armsShoulderLift.set() }
+      _armsSetUpperarmRoll() { this._armsUpperarmRoll.set() }
+      _armsSetElbowFlex() { this._armsElbowFlex.set() }
+      _armsSetWristFlex() { this._armsWristFlex.set() }
+      _armsSetWristRoll() { this._armsWristRoll.set() }
+      _armsSuccessShoulderPan() { this._arms.onSuccess() }
+      _armsErrorShoulderPan() { this._arms.onError() }
+
+      ready() {
+        super.ready();
+        this.hostname = window.location.hostname;
       }
                
       _handleConnection() {
@@ -67,7 +326,61 @@
       }
       _handleTorsoHeight(event) {
         this.torsoHeightApprox = event.detail.data.toFixed(3);
-        console.log(event);
+      }
+
+      _twist_message_template() {
+        return {
+          linear: {
+            x: 0, // Set positive or negative meters/s to drive
+            y: 0,
+            z: 0
+          },
+          angular: {
+            x: 0,
+            y: 0,
+            z: 0 // Set rads/s to turnTWIST_MESSAGE
+          }
+        };
+      }
+
+      _startForward(evt) { 
+        let forward_message = this._twist_message_template();
+        forward_message.linear.x = 0.5;
+        this._startMoving(evt, forward_message); 
+      }
+      _startBack(evt) { 
+        let forward_message = this._twist_message_template();
+        forward_message.linear.x = -0.5;
+        this._startMoving(evt, forward_message); 
+      }
+
+      _startLeft(evt) { 
+        let forward_message = this._twist_message_template();
+        forward_message.angular.z = 1;
+        this._startMoving(evt, forward_message); 
+      }
+
+      _startRight(evt) { 
+        let forward_message = this._twist_message_template();
+        forward_message.angular.z = -1;
+        this._startMoving(evt, forward_message);
+      }
+
+      _startMoving(evt, msg) {
+        evt.preventDefault(); // Prevent right-click menu from showing up after long press on mobile
+        this.status = 'Driving forward...';
+        var baseTopic = this.$.baseTopic; // Get <ros-topic>
+        if (this.baseCommand) {
+          // The timer should not be set at this point, but clear it just in case
+          clearInterval(this.baseCommand);
+        }
+        this.baseCommand = setInterval(function() {
+          baseTopic.publish(msg);
+        }, 10); // Run this function every 10ms, or approximately 100 times per second.
+      }
+      _endBaseCommand(evt) {
+        this.status = 'Stopped driving.';
+        clearInterval(this.baseCommand);
       }
     }
     window.customElements.define(WebTeleopApp.is, WebTeleopApp);
