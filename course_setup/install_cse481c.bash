@@ -2,7 +2,7 @@
 
 # Basic stuff
 sudo apt-get update
-sudo apt-get install -y build-essential vim git tmux python-dev curl python-pip cmake libgif-dev
+sudo apt-get install -y build-essential vim emacs git tmux python-dev curl python-pip cmake libgif-dev openssh-server
 
 # ROS
 sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
@@ -27,3 +27,6 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" # This loads nvm
 nvm install node
 npm install -g polymer-cli bower
+
+# Caddy
+curl https://getcaddy.com | bash -s personal http.cors

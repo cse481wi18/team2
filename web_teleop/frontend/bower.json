@@ -5,6 +5,7 @@
     "polymer": "Polymer/polymer#^2.0.0",
     "ros-websocket": "jstnhuang/ros-websocket#^3.0.2",
     "ros-topic": "jstnhuang/ros-topic#^1.0.0",
+    "ros-action-client": "jstnhuang/ros-action-client#^1.0.0",
     "ros-service": "jstnhuang/ros-service#^2.0.1",
     "paper-button": "PolymerElements/paper-button#^2.0.0",
     "paper-slider": "PolymerElements/paper-slider#^2.0.4"

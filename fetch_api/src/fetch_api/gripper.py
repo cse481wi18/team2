@@ -6,9 +6,9 @@ from control_msgs.msg import GripperCommandAction
 import actionlib
 import rospy
 
-# TODO: ACTION_NAME = ???
 CLOSED_POS = 0.0  # The position for a fully-closed gripper (meters).
 OPENED_POS = 0.10  # The position for a fully-open gripper (meters).
+ACTION_SERVER = 'gripper_controller/gripper_action'
 
 
 class Gripper(object):
