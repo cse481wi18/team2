@@ -1,10 +1,12 @@
 #! /usr/bin/env python
 
-
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Vector3
 from nav_msgs.msg import Odometry
 import rospy
+import copy
+import math
+import tf.transformations as tft
 
 
 class Base(object):
@@ -18,12 +20,23 @@ class Base(object):
     """
 
     def __init__(self):
-	    self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
         self._odom_sub = rospy.Subscriber('odom', Odometry, callback=self._odom_callback)
         self.received = False
+        self.start_position = None
+        self.latest_position = None
+        self.start_quaternion = None
+        self.latest_quaternion = None
 
     def _odom_callback(self, msg):
         self.received = True
+        self.latest_position = msg.pose.pose.position
+        if (self.start_position is None):
+            self.start_position = self.latest_position
+        self.latest_quaternion = msg.pose.pose.orientation
+        if (self.start_quaternion is None):
+            self.start_quaternion = self.start_quaternion
+        # print self.latest_quaternion
         # TODO: do something
 
     def go_forward(self, distance, speed=0.1):
@@ -39,21 +52,26 @@ class Base(object):
                 means forward, negative means backward.
             speed: The speed to travel, in meters/second.
         """
-
-        while self.received = False:
-            rospy.sleep()
+        self.start_odom = None
+        self.received = False
+        while self.received is False:
+            rospy.sleep(0.1)
         
         # TODO: rospy.sleep until the base has received at least one message on /odom
         # TODO: record start position, use Python's copy.deepcopy
-        start = copy.deepcopy(LATEST_ODOM)
+        start = copy.deepcopy(self.start_position)
         rate = rospy.Rate(10)
         # TODO: CONDITION should check if the robot has traveled the desired distance
         # TODO: Be sure to handle the case where the distance is negative!
-        while CONDITION:
+        moved_distance = 0
+        while moved_distance <= distance:
             # TODO: you will probably need to do some math in this loop to check the CONDITION
+            pos = self.latest_position
+            moved_distance = math.sqrt((start.x - pos.x) ** 2 + (start.y - pos.y) ** 2 + (start.z - pos.z) ** 2)
+
             direction = -1 if distance < 0 else 1
             self.move(direction * speed, 0)
-        rate.sleep()
+            rate.sleep()
 
     def turn(self, angular_distance, speed=0.5):
         """Rotates the robot a certain angle.
@@ -63,15 +81,34 @@ class Base(object):
                 value rotates counter-clockwise.
             speed: The angular speed to rotate, in radians/second.
         """
+        angular_distance %= 360
+        if (angular_distance >= 180):
+            angular_distance -= 360
+
         # TODO: rospy.sleep until the base has received at least one message on /odom
+        self.start_odom = None
+        self.received = False
+        while self.received is False:
+            rospy.sleep(0.1)
         # TODO: record start position, use Python's copy.deepcopy
-        start = copy.deepcopy(LATEST_ODOM)
+        start = copy.deepcopy(self.latest_quaternion)
+        m_start = tft.quaternion_matrix([start.x, start.y, start.z, start.w])
+        theta_rads_start = math.atan2(m_start[1,0], m_start[0,0])
         # TODO: What will you do if angular_distance is greater than 2*pi or less than -2*pi?
         rate = rospy.Rate(10)
         # TODO: CONDITION should check if the robot has rotated the desired amount
         # TODO: Be sure to handle the case where the desired amount is negative!
-        while CONDITION:
-            # TODO: you will probably need to do some math in this loop to check the CONDITION
+        difference_deg = 0
+        while abs(difference_deg) < abs(angular_distance):
+            cur = self.latest_quaternion
+            m_cur = tft.quaternion_matrix([cur.x, cur.y, cur.z, cur.w])
+            theta_rads_cur = math.atan2(m_cur[1,0], m_cur[0,0])
+
+            difference = (theta_rads_cur - theta_rads_start) % (2 * math.pi)
+            difference_deg = difference / math.pi * 180
+            if (difference_deg >= 180):
+                difference_deg -= 360 
+
             direction = -1 if angular_distance < 0 else 1
             self.move(0, direction * speed)
             rate.sleep()

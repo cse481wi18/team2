@@ -345,24 +345,24 @@
 
       _startForward(evt) { 
         let forward_message = this._twist_message_template();
-        forward_message.linear.x = 0.5;
+        forward_message.linear.x = 5;
         this._startMoving(evt, forward_message); 
       }
       _startBack(evt) { 
         let forward_message = this._twist_message_template();
-        forward_message.linear.x = -0.5;
+        forward_message.linear.x = -5;
         this._startMoving(evt, forward_message); 
       }
 
       _startLeft(evt) { 
         let forward_message = this._twist_message_template();
-        forward_message.angular.z = 1;
+        forward_message.angular.z = 3;
         this._startMoving(evt, forward_message); 
       }
 
       _startRight(evt) { 
         let forward_message = this._twist_message_template();
-        forward_message.angular.z = -1;
+        forward_message.angular.z = -3;
         this._startMoving(evt, forward_message);
       }
 
