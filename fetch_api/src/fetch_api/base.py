@@ -52,7 +52,9 @@ class Base(object):
                 means forward, negative means backward.
             speed: The speed to travel, in meters/second.
         """
+        print distance
         self.start_odom = None
+        self.start_position = None
         self.received = False
         while self.received is False:
             rospy.sleep(0.1)

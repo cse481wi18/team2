@@ -1,6 +1,6 @@
 {
-  "name": "map-annotator",
-  "short_name": "map-annotator",
+  "name": "map_annotator",
+  "short_name": "map_annotator",
   "start_url": "/",
   "display": "standalone"
 }

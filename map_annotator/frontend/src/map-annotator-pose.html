@@ -3,16 +3,15 @@
 <link rel="import" href="../bower_components/paper-button/paper-button.html">
 
 <dom-module id="map-annotator-pose">
-
-  <ros-topic
-    auto
-    id="userActions"
-    topic="map_annotator/user_actions"
-    ros="{{ros}}"
-    msg-type="map_annotator/UserAction"
-  ></ros-topic>
-
   <template>
+
+    <ros-topic
+      id="userActions"
+      topic="map_annotator/user_actions"
+      ros="{{ros}}"
+      msg-type="map_annotator/UserActions">
+    </ros-topic>
+  
     <style>
       :host {
         display: block;
@@ -38,6 +37,7 @@
           command: 'delete',
           name: this.poseName
         };
+        console.log(this);
         this.$.userActions.publish(msg);
       }
       _handleGoto(evt) {
@@ -46,6 +46,7 @@
           command: 'goto',
           name: this.poseName
         };
+        console.log(this);
         this.$.userActions.publish(msg);
       }
     }

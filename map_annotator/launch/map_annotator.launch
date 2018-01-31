@@ -1,7 +1,7 @@
 <launch>
   <!-- Map annotator server -->
   <!-- You can pass command-line args to your server using the args attribute below. -->
-  <node pkg="map_annotator" type="map_annotator.py" name="map_annotator_server" />
+  <node pkg="map_annotator" type="server.py" name="map_annotator_server" />
 
   <!-- Web prereqs -->
   <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />

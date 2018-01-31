@@ -1,2 +1,1 @@
 string[] pose_names
----

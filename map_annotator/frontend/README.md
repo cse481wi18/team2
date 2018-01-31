@@ -1,4 +1,4 @@
-# \<map-annotator\>
+# \<map_annotator\>
 
 
 
