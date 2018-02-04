@@ -4,6 +4,7 @@ import fetch_api
 import rospy
 from moveit_python import PlanningSceneInterface
 
+from moveit_msgs.msg import OrientationConstraint
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
@@ -32,8 +33,8 @@ def main():
     table_x = 0.8
     table_y = 0
     table_z = 0.6
-    planning_scene.addBox('table', table_size_x, table_size_y, table_size_z,
-                          table_x, table_y, table_z)
+    # planning_scene.addBox('table', table_size_x, table_size_y, table_size_z,
+    #                       table_x, table_y, table_z)
 
     # Create divider obstacle
     planning_scene.removeCollisionObject('divider')
@@ -43,7 +44,7 @@ def main():
     x = table_x - (table_size_x / 2) + (size_x / 2)
     y = 0 
     z = table_z + (table_size_z / 2) + (size_z / 2)
-    planning_scene.addBox('divider', size_x, size_y, size_z, x, y, z)
+    # planning_scene.addBox('divider', size_x, size_y, size_z, x, y, z)
         
     pose1 = PoseStamped()
     pose1.header.frame_id = 'base_link'
@@ -67,8 +68,8 @@ def main():
     kwargs = {
         'allowed_planning_time': 15,
         'execution_timeout': 10,
-        'num_planning_attempts': 5,
-        'replan': False
+        'num_planning_attempts': 10,
+        'replan': True
     }
     error = arm.move_to_pose(pose1, **kwargs)
     if error is not None:
@@ -84,6 +85,16 @@ def main():
         planning_scene.setColor('tray', 1, 0, 1)
         planning_scene.sendColors()
     rospy.sleep(1)
+
+    oc = OrientationConstraint()
+    oc.header.frame_id = 'base_link'
+    oc.link_name = 'wrist_roll_link'
+    oc.orientation.w = 1
+    oc.absolute_x_axis_tolerance = 0.01
+    oc.absolute_y_axis_tolerance = 0.01
+    oc.absolute_z_axis_tolerance = 0.01
+    oc.weight = 1.0
+    kwargs['orientation_constraint'] = oc
     error = arm.move_to_pose(pose2, **kwargs)
     if error is not None:
         rospy.logerr('Pose 2 failed: {}'.format(error))
