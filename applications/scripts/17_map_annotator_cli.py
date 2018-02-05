@@ -24,10 +24,6 @@ class Core(object):
 
   def listPoses(self):
     return self.poses
-    # names = []
-    # for key in self.poses:
-    #     names.append(key)
-    # return names
 
   def savePose(self, name):
     self.poses[name] = self.lastPose
@@ -41,8 +37,6 @@ class Core(object):
 
   def gotoPose(self, name):     
     pose = self.poses[name]
-
-    # pose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=5)
 
     poseStamped = PoseStamped()
     poseStamped.header.frame_id = "map"
