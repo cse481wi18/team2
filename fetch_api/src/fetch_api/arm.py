@@ -161,8 +161,10 @@ class Arm(object):
         response = self._compute_ik(request)
         error_str = moveit_error_string(response.error_code.val)
         success = error_str == 'SUCCESS'
+        print "??"
         if not success:
             return False
+        print "?"
         joint_state = response.solution.joint_state
         for name, position in zip(joint_state.name, joint_state.position):
             if name in ArmJoints.names():
