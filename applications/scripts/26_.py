@@ -26,7 +26,7 @@ def move_pose(p, x, y, z):
     listener = TransformListener(rospy.Duration(10))
     listener.waitForTransform('base_link', 'wrist_roll_link', rospy.Time(), rospy.Duration(4.0))
     mat = tft.quaternion_matrix([p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w])
-    offset = np.matmul(mat, np.array([x, y, z, 1]))
+    offset = mat.dot(np.array([x, y, z, 1]))
     p.position.x += offset[0]
     p.position.y += offset[1]
     p.position.z += offset[2]
