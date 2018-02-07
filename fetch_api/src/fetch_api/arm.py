@@ -26,6 +26,8 @@ class Arm(object):
     """
 
     def __init__(self):
+        print "Did you [roslaunch fetch_moveit_config move_group.launch]?"
+
         # TODO: Create actionlib client
         # TODO: Wait for server
         self._client = actionlib.SimpleActionClient(ACTION_NAME, FollowJointTrajectoryAction)
