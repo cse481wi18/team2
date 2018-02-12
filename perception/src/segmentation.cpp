@@ -46,16 +46,17 @@ void SegmentSurface(PointCloudC::Ptr cloud, pcl::PointIndices::Ptr indices) {
   seg.segment(indices_internal, coeff);
 
   // Build custom indices that ignores points above the plane.
-  // for (size_t i = 0; i < cloud->size(); ++i) {
-  //   const PointC& pt = cloud->points[i];
-  //   float val = coeff.values[0] * pt.x + coeff.values[1] * pt.y +
-  //               coeff.values[2] * pt.z + coeff.values[3];
-  //   if (val <= distance_above_plane) {
-  //     indices->indices.push_back(i);
-  //   }
-  // }
+  for (size_t i=0; i<indices_internal.indices.size(); ++i) {
+    int index = indices_internal.indices[i];
+    const PointC& pt = cloud->points[index];
+    float val = coeff.values[0] * pt.x + coeff.values[1] * pt.y +
+                coeff.values[2] * pt.z + coeff.values[3];
+    if (val <= distance_above_plane) {
+      indices->indices.push_back(index);
+    }
+  }
 
-  *indices = indices_internal;
+  // *indices = indices_internal;
 
   if (indices->indices.size() == 0) {
     ROS_ERROR("Unable to find surface.");
