@@ -11,9 +11,11 @@
 #include "pcl/sample_consensus/method_types.h"
 #include "pcl/sample_consensus/model_types.h"
 #include "pcl/segmentation/sac_segmentation.h"
+#include "pcl/segmentation/extract_clusters.h"
 #include "pcl/common/common.h"
 
 #include "pcl/filters/extract_indices.h"
+#include <string>
 
 typedef pcl::PointXYZRGB PointC;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudC;
@@ -64,6 +66,49 @@ void SegmentSurface(PointCloudC::Ptr cloud, pcl::PointIndices::Ptr indices) {
   }  
 }
 
+void SegmentSurfaceObjects(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
+                           pcl::PointIndices::Ptr surface_indices,
+                           std::vector<pcl::PointIndices>* object_indices) {
+  pcl::ExtractIndices<PointC> extract;
+  pcl::PointIndices::Ptr above_surface_indices(new pcl::PointIndices());
+  extract.setInputCloud(cloud);
+  extract.setIndices(surface_indices);
+  extract.setNegative(true);
+  extract.filter(above_surface_indices->indices);
+
+  ROS_INFO("1_cloud: %ld", cloud->size());
+
+  ROS_INFO("There are %ld points above the table", above_surface_indices->indices.size());
+
+  double cluster_tolerance;
+  int min_cluster_size, max_cluster_size;
+  ros::param::param("ec_cluster_tolerance", cluster_tolerance, 0.01);
+  ros::param::param("ec_min_cluster_size", min_cluster_size, 10);
+  ros::param::param("ec_max_cluster_size", max_cluster_size, 10000);
+
+  pcl::EuclideanClusterExtraction<PointC> euclid;
+  euclid.setInputCloud(cloud);
+  euclid.setIndices(above_surface_indices);
+  euclid.setClusterTolerance(cluster_tolerance);
+  euclid.setMinClusterSize(min_cluster_size);
+  euclid.setMaxClusterSize(max_cluster_size);
+  euclid.extract(*object_indices);
+
+  // Find the size of the smallest and the largest object,
+  // where size = number of points in the cluster
+  size_t min_size = std::numeric_limits<size_t>::max();
+  size_t max_size = std::numeric_limits<size_t>::min();
+  for (size_t i = 0; i < object_indices->size(); ++i) {
+    // TODO: implement this
+    size_t cluster_size = (*object_indices)[i].indices.size();
+    if (cluster_size > max_size) max_size = cluster_size;
+    if (cluster_size < min_size) min_size = cluster_size;
+  }
+
+  ROS_INFO("Found %ld objects, min size: %ld, max size: %ld",
+          object_indices->size(), min_size, max_size);
+}
+
 void GetAxisAlignedBoundingBox(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
                                geometry_msgs::Pose* pose,
                                geometry_msgs::Vector3* dimensions) {
@@ -107,7 +152,6 @@ void Segmenter::Callback(const sensor_msgs::PointCloud2& msg) {
   ROS_INFO("Table_cloud: %ld", cloud->size());
   ROS_INFO("Subset_cloud: %ld", subset_cloud->size());
 
-
   // Sets the pose and dimensions of a box surrounding the given point cloud.
   visualization_msgs::Marker table_marker;
   table_marker.ns = "table";
@@ -117,5 +161,49 @@ void Segmenter::Callback(const sensor_msgs::PointCloud2& msg) {
   table_marker.color.r = 1;
   table_marker.color.a = 0.8;
   marker_pub_.publish(table_marker);
+
+  PointCloudC::Ptr cloud2(new PointCloudC());
+  //pcl::fromROSMsg(msg, *cloud2);
+  std::vector<pcl::PointIndices> object_indices;
+  pcl::PointIndices::Ptr table_inliers2(new pcl::PointIndices());
+  SegmentSurfaceObjects(cloud, table_inliers, &object_indices);
+  ROS_INFO("hello");
+
+  for (size_t i = 0; i < object_indices.size(); ++i) {
+    // Reify indices into a point cloud of the object.
+    pcl::PointIndices::Ptr indices(new pcl::PointIndices);
+    *indices = object_indices[i];
+    PointCloudC::Ptr object_cloud(new PointCloudC());
+    // TODO: fill in object_cloud using indices
+    pcl::ExtractIndices<PointC> extract2;
+    extract2.setInputCloud(cloud);
+    extract2.setIndices(indices);
+    extract2.filter(*object_cloud);
+
+    // Publish a bounding box around it.
+    visualization_msgs::Marker object_marker;
+    object_marker.ns = "objects";
+    object_marker.id = i;
+    object_marker.header.frame_id = "base_link";
+    object_marker.type = visualization_msgs::Marker::CUBE;
+    GetAxisAlignedBoundingBox(object_cloud, &object_marker.pose,
+                              &object_marker.scale);
+    object_marker.color.g = 1;
+    object_marker.color.a = 0.3;
+    marker_pub_.publish(object_marker);
+  }
+
+  //SegmentSurface(cloud, table_inliers2);
+  // for (size_t i = 0; i < table_inliers->indices.size(); ++i) {
+  //   ROS_INFO("%d" + table_inliers->indices[i]);
+  // }
+
+  // We are reusing the extract object created earlier in the callback.
+  // PointCloudC::Ptr cloud_out(new PointCloudC());
+  // extract.setNegative(true);
+  // extract.filter(*cloud_out);
+  // pcl::toROSMsg(*cloud_out, msg_out);
+  // marker_pub.publish(msg_out);
+  //above_surface_pub_.publish(msg_out);
 }
 }  // namespace perception

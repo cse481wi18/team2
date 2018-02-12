@@ -46,6 +46,7 @@ add_executable(perception_point_cloud_demo_segmenter src/point_cloud_demo_segmen
 set_target_properties(perception_point_cloud_demo_segmenter PROPERTIES OUTPUT_NAME point_cloud_demo_segmenter PREFIX "")
 add_dependencies(perception_point_cloud_demo_segmenter ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(perception_point_cloud_demo_segmenter
+  perception_crop
   perception_segmentation
   ${catkin_LIBRARIES}
 )

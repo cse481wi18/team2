@@ -7,6 +7,8 @@
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Vector3.h"
 
+#include <vector>
+
 namespace perception {
 // Finds the largest horizontal surface in the given point cloud.
 // This is useful for adding a collision object to MoveIt.
@@ -27,6 +29,10 @@ void SegmentSurface(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
 void GetAxisAlignedBoundingBox(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
                                geometry_msgs::Pose* pose,
                                geometry_msgs::Vector3* dimensions);
+
+void SegmentSurfaceObjects(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
+                           pcl::PointIndices::Ptr surface_indices,
+                           std::vector<pcl::PointIndices>* object_indices);                        
 
 class Segmenter {
  public:
