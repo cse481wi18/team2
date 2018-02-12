@@ -52,7 +52,7 @@ def main():
         error = arm.move_to_pose(marker_pose)
         if error is None:
             rospy.loginfo('Moved to marker {}'.format(marker.id))
-            return
+            continue
         else:
             print(error)
             rospy.logwarn('Failed to move to marker {}'.format(marker.id))

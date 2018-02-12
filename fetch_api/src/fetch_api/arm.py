@@ -5,10 +5,11 @@ from control_msgs.msg import FollowJointTrajectoryGoal
 from .moveit_goal_builder import MoveItGoalBuilder
 from moveit_msgs.msg import MoveItErrorCodes, MoveGroupAction    
 from moveit_msgs.srv import GetPositionIK, GetPositionIKRequest
-
+from geometry_msgs.msg import Pose, Point, Quaternion
 
 import rospy
 import actionlib
+import tf
 
 from .arm_joints import ArmJoints
 
@@ -64,6 +65,24 @@ class Arm(object):
         # TODO: Wait for result
         self._client.send_goal(goal)
         self._client.wait_for_result(rospy.Duration.from_sec(5.0))
+
+    def relax(self):
+        goal = QueryControllerStatesGoal()
+        state = ControllerState()
+        state.name = 'arm_controller/follow_joint_trajectory'
+        state.state = ControllerState.STOPPED
+        goal.updates.append(state)
+        self._controller_client.send_goal(goal)
+        self._controller_client.wait_for_result()
+
+    def unrelax(self):
+        goal = QueryControllerStatesGoal()
+        state = ControllerState()
+        state.name = 'arm_controller/follow_joint_trajectory'
+        state.state = ControllerState.RUNNING
+        goal.updates.append(state)
+        self._controller_client.send_goal(goal)
+        self._controller_client.wait_for_result()
 
     def move_to_pose(self,
                     pose_stamped,
@@ -131,6 +150,16 @@ class Arm(object):
         except:
             return None
 
+    def get_gripper_pose(self):
+        listener = tf.TransformListener()
+        listener.waitForTransform('base_link', 'wrist_roll_link', rospy.Time(), rospy.Duration(4.0))
+        ([tx,ty,tz],[rx,ry,rz,rw]) = listener.lookupTransform('base_link', 'wrist_roll_link', rospy.Time(0))
+        pose = Pose()
+        pose.position = Point(tx, ty, tz)
+        pose.orientation = Quaternion(rx, ry, rz, rw)
+        return pose
+
+
     def check_pose(self, 
                    pose_stamped,
                    allowed_planning_time=10.0,
@@ -163,10 +192,8 @@ class Arm(object):
         response = self._compute_ik(request)
         error_str = moveit_error_string(response.error_code.val)
         success = error_str == 'SUCCESS'
-        print "??"
         if not success:
             return False
-        print "?"
         joint_state = response.solution.joint_state
         for name, position in zip(joint_state.name, joint_state.position):
             if name in ArmJoints.names():
