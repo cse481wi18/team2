@@ -6,6 +6,7 @@ import fetch_api
 import copy
 import tf.transformations as tft
 import numpy as np
+import pickle
 
 from ar_track_alvar_msgs.msg import AlvarMarkers
 from interactive_markers.interactive_marker_server import InteractiveMarkerServer
@@ -81,8 +82,13 @@ class PbD():
   CLOSE_GRIPPER_COMMAND = 3
 
   def __init__(self, server, ar_tag_reader, base, arm, gripper):
-    self.programs = {}
-    self.curr_program_name = None
+    try: 
+        pickle_in = open("29_pbd.pickle", "rb")
+        self.programs = pickle.load(pickle_in)
+    except IOError:
+        self.programs = {}
+
+    self.curr_program_name = ""
     self.pose_sub = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.savePose_cb)
     self.curr_pose = None
     self.curr_program = []
@@ -106,6 +112,9 @@ class PbD():
     
   def save_program(self):
     self.programs[self.curr_program_name] = copy.deepcopy(self.curr_program)
+    pickle_out = open("29_pbd.pickle", "wb")
+    pickle.dump(self.programs, pickle_out)
+    print "Program saved: \n", self.programs
 
   def save_pose_raw(self, num):
     #gripper_pos = self.curr_pose
@@ -120,7 +129,7 @@ class PbD():
       Tw_Tg = np.linalg.inv(Tg1).dot(Tw1)
 
       self.save_pose(matrix_to_pose(Tw_Tg), num)
-    print "save pose #%d" % num
+    print "Pose saved relative to #%d" % num
 
   def save_pose(self, pos, relative_to):
     self.curr_program.append({
@@ -128,21 +137,20 @@ class PbD():
       'pose': copy.deepcopy(pos),
       'relative_to': relative_to
     })
-    print self.curr_program
 
   def open_gripper(self):
     self.gripper.open()
     self.curr_program.append({
       'command': PbD.OPEN_GRIPPER_COMMAND
     })
-    print self.curr_program
+    print "Open gripper action saved"
 
   def close_gripper(self):
     self.gripper.close()
     self.curr_program.append({
       'command': PbD.CLOSE_GRIPPER_COMMAND
     })
-    print self.curr_program
+    print "Close gripper action saved"
 
   def print_programs(self):
     print self.programs
@@ -164,10 +172,11 @@ class PbD():
 
   def load_program(self, program):
     self.arm.unrelax()
+    i = 0
     for action in program:
       if action['command'] == PbD.GO_TO_POSE_COMMAND:
-        print "..."
         num = action['relative_to']
+        print "Action", i, "-", "go to pose relative to #", num
         pose = action['pose']
         if num == 0:
           print pose
@@ -181,13 +190,14 @@ class PbD():
           pass
 
       elif action['command'] == PbD.OPEN_GRIPPER_COMMAND:
-        print "opening"
+        print "Action", i, "-", "open"
         self.gripper.open()
       elif action['command'] == PbD.CLOSE_GRIPPER_COMMAND:
-        print "closing"
+        print "Action", i, "-", "close"
         self.gripper.close()
-
+      
       rospy.sleep(0.5)
+      i += 1
 
   def change_marker(self, numTags):
     forward_marker = newMarker("follow", 0, 0, 1.3)

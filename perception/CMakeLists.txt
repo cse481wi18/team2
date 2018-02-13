@@ -3,6 +3,7 @@ project(perception)
 
 find_package(catkin REQUIRED COMPONENTS
   pcl_ros
+  simple_grasping
   rosbag       
   roscpp    
   rospy

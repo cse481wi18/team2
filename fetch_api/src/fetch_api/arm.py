@@ -6,6 +6,8 @@ from .moveit_goal_builder import MoveItGoalBuilder
 from moveit_msgs.msg import MoveItErrorCodes, MoveGroupAction    
 from moveit_msgs.srv import GetPositionIK, GetPositionIKRequest
 from geometry_msgs.msg import Pose, Point, Quaternion
+from robot_controllers_msgs.msg import QueryControllerStatesGoal, ControllerState
+from robot_controllers_msgs.msg import QueryControllerStatesAction
 
 import rospy
 import actionlib
@@ -14,6 +16,7 @@ import tf
 from .arm_joints import ArmJoints
 
 ACTION_NAME = "arm_controller/follow_joint_trajectory"
+CONTROLLER_ACTION_NAME = "query_controller_states"
 MOVE_GROUP_ACTION_NAME = "move_group"
 
 class Arm(object):
@@ -33,6 +36,8 @@ class Arm(object):
         # TODO: Wait for server
         self._client = actionlib.SimpleActionClient(ACTION_NAME, FollowJointTrajectoryAction)
         self._client.wait_for_server()
+        self._controller_client = actionlib.SimpleActionClient(CONTROLLER_ACTION_NAME, QueryControllerStatesAction)
+        self._controller_client.wait_for_server()
         self._move_group_client = actionlib.SimpleActionClient(MOVE_GROUP_ACTION_NAME, MoveGroupAction)
         self._move_group_client.wait_for_server()
         self._compute_ik = rospy.ServiceProxy('compute_ik', GetPositionIK)
