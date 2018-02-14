@@ -38,12 +38,14 @@ void SegmentSurfaceObjects(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
 
 class Segmenter {
  public:
-  Segmenter(const ros::Publisher& surface_points_pub,
-   const ros::Publisher& marker_pub);
+  Segmenter(const ros::Publisher& table_pub,
+   const ros::Publisher& marker_pub,
+   const ros::Publisher& above_surface_pub);
   void Callback(const sensor_msgs::PointCloud2& msg);
 
  private:
-  ros::Publisher surface_points_pub_;
+  ros::Publisher table_pub_;
   ros::Publisher marker_pub_;
+  ros::Publisher above_surface_pub_;
 };
 }  // namespace perception

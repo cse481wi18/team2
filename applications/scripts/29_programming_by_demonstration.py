@@ -68,13 +68,17 @@ def matrix_to_pose(matrix):
 
 class ArTagReader(object):
   def __init__(self):
-    self.markers = []
+    self.markers = {}
     self.pbd = None
 
   def callback(self, msg):
-    self.markers = list(map(lambda m: m.pose.pose, msg.markers))
+    self.markers = {}
+    for m in msg.markers:
+      self.markers[m.id] = m.pose.pose
+
+    # self.markers = list(map(lambda m: m.pose.pose, msg.markers))
     if self.pbd is not None:
-      self.pbd.change_marker(len(msg.markers))
+      self.pbd.change_marker(self.markers)
 
 class PbD():
   GO_TO_POSE_COMMAND = 1
@@ -99,16 +103,19 @@ class PbD():
     self.gripper = gripper
     self.ar_tag_reader = ar_tag_reader
 
+    self.marker_menu_names = {}
+
   def create_program(self):
     print "what is the name of this program???? "
     # prompt user for the name
     name = sys.stdin.readline()
     self.curr_program_name = name.rstrip()
     self.curr_program = []
-    if rospy.get_param("use_sim_time") is None:
-      self.arm.relax()
-    else:
-      self.arm.unrelax()
+    # if rospy.get_param("use_sim_time") is None:
+    self.arm.relax()
+    print "RELAXED"
+    # else:
+    #   self.arm.unrelax()
     
   def save_program(self):
     self.programs[self.curr_program_name] = copy.deepcopy(self.curr_program)
@@ -122,20 +129,21 @@ class PbD():
     if num == 0:
       self.save_pose(gripper_pos, num)
     else:
+      marker_id = self.marker_menu_names[num - 1]
       # Tw2 = Tg2 * Tg1^-1 * Tw1
       print gripper_pos
       Tw1 = pose_to_matrix(gripper_pos)
-      Tg1 = pose_to_matrix(self.ar_tag_reader.markers[num - 1])
+      Tg1 = pose_to_matrix(self.ar_tag_reader.markers[marker_id])
       Tw_Tg = np.linalg.inv(Tg1).dot(Tw1)
 
-      self.save_pose(matrix_to_pose(Tw_Tg), num)
-    print "Pose saved relative to #%d" % num
+      self.save_pose(matrix_to_pose(Tw_Tg), marker_id)
+    print "Pose saved relative to #%d" % marker_id
 
-  def save_pose(self, pos, relative_to):
+  def save_pose(self, pos, marker_id):
     self.curr_program.append({
       'command': PbD.GO_TO_POSE_COMMAND,
       'pose': copy.deepcopy(pos),
-      'relative_to': relative_to
+      'relative_to': marker_id
     })
 
   def open_gripper(self):
@@ -175,15 +183,15 @@ class PbD():
     i = 0
     for action in program:
       if action['command'] == PbD.GO_TO_POSE_COMMAND:
-        num = action['relative_to']
-        print "Action", i, "-", "go to pose relative to #", num
+        marker_id = action['relative_to']
+        print "Action", i, "-", "go to pose relative to", marker_id
         pose = action['pose']
-        if num == 0:
+        if marker_id == 0:
           print pose
           self.arm.move_to_pose(pose_to_pose_stamped(pose))
         else:
           Tw_Tg = pose_to_matrix(pose)
-          Tg2 = pose_to_matrix(self.ar_tag_reader.markers[num - 1])
+          Tg2 = pose_to_matrix(self.ar_tag_reader.markers[marker_id])
           Tw2 = Tg2.dot(Tw_Tg)
           print matrix_to_pose(Tw2)
           self.arm.move_to_pose(pose_to_pose_stamped(matrix_to_pose(Tw2)))
@@ -199,7 +207,7 @@ class PbD():
       rospy.sleep(0.5)
       i += 1
 
-  def change_marker(self, numTags):
+  def change_marker(self, tagMarkers):
     forward_marker = newMarker("follow", 0, 0, 1.3)
     def handle_forward_input(feedback):
       if feedback.event_type == InteractiveMarkerFeedback.BUTTON_CLICK:
@@ -243,13 +251,18 @@ class PbD():
     menu_save_pose_robot.title = "robot"
     menu_save_pose_robot.command_type = MenuEntry.FEEDBACK
 
-    menu_save_pose_tags = [None] * numTags
-    for i in range(numTags):
-      menu_save_pose_tags[i] = MenuEntry()
-      menu_save_pose_tags[i].id = 100 + i + 1
-      menu_save_pose_tags[i].parent_id = 3
-      menu_save_pose_tags[i].title = "tag%d" % (i + 1)
-      menu_save_pose_tags[i].command_type = MenuEntry.FEEDBACK
+    menu_save_pose_tags = [None] * len(tagMarkers)
+    self.marker_menu_names = {}
+    numTags = 0
+    for id in tagMarkers:
+      pos = tagMarkers[id]
+      self.marker_menu_names[numTags] = id
+      menu_save_pose_tags[numTags] = MenuEntry()
+      menu_save_pose_tags[numTags].id = 100 + numTags + 1
+      menu_save_pose_tags[numTags].parent_id = 3
+      menu_save_pose_tags[numTags].title = str(id)
+      menu_save_pose_tags[numTags].command_type = MenuEntry.FEEDBACK
+      numTags += 1
 
     menu_open = MenuEntry()
     menu_open.id = 4
@@ -293,7 +306,7 @@ def main():
   
   server = InteractiveMarkerServer('programming_by_demonstration')
   pbd = PbD(server, ar_tag_reader, base, arm, gripper)
-  pbd.change_marker(0)
+  pbd.change_marker({})
   ar_tag_reader.pbd = pbd
 
   rospy.spin()
