@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(perception)
 
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
 find_package(catkin REQUIRED COMPONENTS
+  geometry_msgs                 
+  shape_msgs
   pcl_ros
   simple_grasping
   rosbag       
@@ -11,6 +15,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf
 )
 
+find_package(PCL REQUIRED)
+
 catkin_python_setup()
 
 catkin_package(
@@ -19,6 +25,18 @@ catkin_package(
     perception_crop
     perception_downsample
     perception_segmentation
+    perception_box_fitter
+  CATKIN_DEPENDS
+    geometry_msgs
+    pcl_ros
+    rosbag
+    roscpp
+    rospy
+    sensor_msgs
+    shape_msgs
+    simple_grasping
+    tf
+#  DEPENDS system_lib
 # CATKIN_DEPENDS roscpp rospy
 # DEPENDS system_lib
 )
@@ -26,8 +44,15 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${catkin_LIBRARY_DIRS}
+  ${PCL_LIBRARY_DIRS}
 )
 
+add_library(perception_box_fitter src/box_fitter.cpp)
+add_dependencies(perception_box_fitter ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(perception_box_fitter
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES})
 add_executable(perception_save_cloud_main src/save_cloud_main.cpp)
 set_target_properties(perception_save_cloud_main PROPERTIES OUTPUT_NAME save_cloud PREFIX "")
 add_dependencies(perception_save_cloud_main ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

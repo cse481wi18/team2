@@ -56,6 +56,13 @@
   <exec_depend>roscpp</exec_depend>
   <exec_depend>rospy</exec_depend>
 
+  <depend>geometry_msgs</depend>
+  <depend>pcl_ros</depend>
+  <depend>rosbag</depend>
+  <depend>sensor_msgs</depend>
+  <depend>shape_msgs</depend>
+  <depend>simple_grasping</depend>
+  <depend>tf</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
