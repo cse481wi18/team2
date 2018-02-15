@@ -7,6 +7,7 @@
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Vector3.h"
 #include "pcl/ModelCoefficients.h"
+#include "perception/object.h"
 
 #include <vector>
 
@@ -32,9 +33,17 @@ void GetAxisAlignedBoundingBox(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
                                geometry_msgs::Pose* pose,
                                geometry_msgs::Vector3* dimensions);
 
-void SegmentSurfaceObjects(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
-                           pcl::PointIndices::Ptr surface_indices,
+void SegmentSurfaceObjects(pcl::PointCloud<pcl::PointXYZRGB>::Ptr above_surface_cloud,
                            std::vector<pcl::PointIndices>* object_indices);                        
+
+// Does a complete tabletop segmentation pipeline.
+//
+// Args:
+//  cloud: The point cloud with the surface and the objects above it.
+//  objects: The output objects.
+void SegmentTabletopScene(pcl::PointCloud<pcl::PointXYZRGB>::Ptr above_surface_cloud,
+                          std::vector<Object>* objects,
+                          pcl::ModelCoefficients::Ptr coeff);
 
 class Segmenter {
  public:

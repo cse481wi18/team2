@@ -74,6 +74,7 @@ add_dependencies(perception_point_cloud_demo_segmenter ${${PROJECT_NAME}_EXPORTE
 target_link_libraries(perception_point_cloud_demo_segmenter
   perception_crop
   perception_segmentation
+  perception_box_fitter
   ${catkin_LIBRARIES}
 )
 
