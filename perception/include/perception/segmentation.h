@@ -42,8 +42,7 @@ void SegmentSurfaceObjects(pcl::PointCloud<pcl::PointXYZRGB>::Ptr above_surface_
 //  cloud: The point cloud with the surface and the objects above it.
 //  objects: The output objects.
 void SegmentTabletopScene(pcl::PointCloud<pcl::PointXYZRGB>::Ptr above_surface_cloud,
-                          std::vector<Object>* objects,
-                          pcl::ModelCoefficients::Ptr coeff);
+                          std::vector<Object>* objects);
 
 class Segmenter {
  public:

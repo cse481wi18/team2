@@ -48,11 +48,6 @@ include_directories(
   ${PCL_LIBRARY_DIRS}
 )
 
-add_library(perception_box_fitter src/box_fitter.cpp)
-add_dependencies(perception_box_fitter ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(perception_box_fitter
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES})
 add_executable(perception_save_cloud_main src/save_cloud_main.cpp)
 set_target_properties(perception_save_cloud_main PROPERTIES OUTPUT_NAME save_cloud PREFIX "")
 add_dependencies(perception_save_cloud_main ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
@@ -65,6 +60,17 @@ set_target_properties(perception_point_cloud_demo_cropper PROPERTIES OUTPUT_NAME
 add_dependencies(perception_point_cloud_demo_cropper ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(perception_point_cloud_demo_cropper
   perception_crop
+  ${catkin_LIBRARIES}
+)
+
+add_executable(extract_features src/extract_features_main.cpp)
+set_target_properties(extract_features PROPERTIES OUTPUT_NAME extract_features PREFIX "")
+add_dependencies(extract_features ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(extract_features
+  perception_crop
+  perception_segmentation
+  perception_extract_feature
+  perception_box_fitter
   ${catkin_LIBRARIES}
 )
 
@@ -89,3 +95,13 @@ target_link_libraries(perception_downsample ${catkin_LIBRARIES})
 add_library(perception_segmentation src/segmentation.cpp)
 add_dependencies(perception_segmentation ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(perception_segmentation ${catkin_LIBRARIES})
+
+add_library(perception_extract_feature src/feature_extraction.cpp)
+add_dependencies(perception_extract_feature ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(perception_extract_feature ${catkin_LIBRARIES})
+
+add_library(perception_box_fitter src/box_fitter.cpp)
+add_dependencies(perception_box_fitter ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(perception_box_fitter
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES})

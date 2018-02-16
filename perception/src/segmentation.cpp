@@ -29,20 +29,29 @@ typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudC;
 
 namespace perception {
 
-  void SegmentTabletopScene(PointCloudC::Ptr above_cloud,
-                            std::vector<Object>* objects,
-                            pcl::ModelCoefficients::Ptr coeff) {
+
+
+  void SegmentTopScene(PointCloudC::Ptr above_cloud,
+                            std::vector<Object>* objects) {
+
+    // sensor_msgs::PointCloud2 test_out;
+    // pcl::toROSMsg(*above_cloud, test_out);
+    // ros::NodeHandle nh;
+    // ros::Publisher test_pub = nh.advertise<sensor_msgs::PointCloud2>("test_cloud", 1, true);
+    // test_pub.publish(test_out); 
+
     // Same as callback, but with visualization code removed.
     std::vector<pcl::PointIndices> object_indices;
     SegmentSurfaceObjects(above_cloud, &object_indices);
 
+    // std::cout << "hello" << std::endl;
     for (size_t i = 0; i < object_indices.size(); ++i) {
       // Reify indices into a point cloud of the object.
       pcl::PointIndices::Ptr indices(new pcl::PointIndices);
       *indices = object_indices[i];
       PointCloudC::Ptr object_cloud(new PointCloudC());
       // TODO: fill in object_cloud using indices
-      pcl::ExtractIndices<PointC> extract2;
+      pcl::ExtractIndices<PointC> extract2; 
       extract2.setInputCloud(above_cloud);
       extract2.setIndices(indices);
       extract2.filter(*object_cloud);
@@ -50,6 +59,12 @@ namespace perception {
       PointCloudC::Ptr extract_out2(new PointCloudC());
       shape_msgs::SolidPrimitive shape2;
       geometry_msgs::Pose table_pose2;
+
+      pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients());
+      coeff->values.push_back(-0.007);
+      coeff->values.push_back(0.019);
+      coeff->values.push_back(0.999);
+      coeff->values.push_back(-0.737);
       FitBox(*object_cloud, coeff, *extract_out2, shape2, table_pose2);
 
       Object obj = Object();
@@ -61,9 +76,32 @@ namespace perception {
       obj.dimensions.y = shape2.dimensions[1];
       obj.dimensions.z = shape2.dimensions[2];
       objects->push_back(obj);
+
+      // std::cout << "lol wtf" << std::endl;
     }
   }
 
+  void SegmentTabletopScene(PointCloudC::Ptr table_and_above_cloud,
+                            std::vector<Object>* objects) {
+    // Separate table and above
+    pcl::PointIndices::Ptr table_inliers(new pcl::PointIndices());
+    pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients());
+    SegmentSurface(table_and_above_cloud, table_inliers, coeff);
+    if (table_inliers->indices.size() == 0) {
+      ROS_INFO("Can't find table! Aborting...");
+      return;
+    }
+
+    // Get above_cloud
+    PointCloudC::Ptr above_cloud(new PointCloudC());
+    pcl::ExtractIndices<PointC> extract2;
+    extract2.setInputCloud(table_and_above_cloud);
+    extract2.setNegative(true);
+    extract2.setIndices(table_inliers);
+    extract2.filter(*above_cloud);
+
+    SegmentTopScene(above_cloud, objects);
+  }
 
   void SegmentSurface(PointCloudC::Ptr cloud,
                     pcl::PointIndices::Ptr indices,
@@ -90,6 +128,11 @@ namespace perception {
     ros::param::param("distance_above_plane", distance_above_plane, 0.005);
 
     seg.segment(indices_internal, *coeff);
+    
+    // Print coefficients    // for (std::vector<float>::const_iterator i = coeff->values.begin(); i != coeff->values.end(); ++i)
+    //     std::cout << *i << std::endl;
+    // for (std::vector<float>::const_iterator i = coeff->values.begin(); i != coeff->values.end(); ++i)
+    //     std::cout << *i << std::endl;
 
     // Build custom indices that ignores points above the plane.
     for (size_t i=0; i<indices_internal.indices.size(); ++i) {
@@ -101,20 +144,6 @@ namespace perception {
         indices->indices.push_back(index);
       }
     }
-
-    // coeff_out = boost::make_shared<pcl::ModelCoefficients>(coeff);
-
-    // pcl::ModelCoefficients::Ptr coeff_tmp = pcl::ModelCoefficients::Ptr(&coeff);
-    // coeff_out.swap(coeff_tmp);
-
-    // coeff_out->values.push_back(coeff.values[0]);
-    // coeff_out->values.push_back(coeff.values[1]);
-    // coeff_out->values.push_back(coeff.values[2]);
-    // coeff_out->values.push_back(coeff.values[3]);
-    
-    // coeff_out.reset(&coeff);
-
-    // *indices = indices_internal;
 
     if (indices->indices.size() == 0) {
       ROS_ERROR("Unable to find surface.");
@@ -184,7 +213,6 @@ namespace perception {
     pcl::removeNaNFromPointCloud(*cloud_unfiltered, *cloud, index);
 
     pcl::PointIndices::Ptr table_inliers(new pcl::PointIndices());
-
     pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients());
     SegmentSurface(cloud, table_inliers, coeff);
 
@@ -193,12 +221,12 @@ namespace perception {
     pcl::ExtractIndices<PointC> extract;
     extract.setInputCloud(cloud);
     extract.setIndices(table_inliers);
-    if (table_inliers->indices.size() ==0) {
+    if (table_inliers->indices.size() == 0) {
       ROS_INFO("error");
     } else {
       extract.filter(*subset_cloud);
 
-      // Publish above_cloud, not functional
+      // Publish above_cloud
       PointCloudC::Ptr above_cloud(new PointCloudC());
       pcl::ExtractIndices<PointC> extract2;
       extract2.setInputCloud(cloud);
@@ -211,8 +239,32 @@ namespace perception {
       above_surface_pub_.publish(msg_out3); 
       // Done publishing above_cloud
 
+      // Publish table marker
+      PointCloudC::Ptr extract_out(new PointCloudC());
+      shape_msgs::SolidPrimitive shape;
+      geometry_msgs::Pose table_pose;
+      simple_grasping::extractShape(*subset_cloud, coeff, *extract_out, shape, table_pose);
+  
+      // Sets the pose and dimensions of a box surrounding the given point cloud.
+      visualization_msgs::Marker table_marker;
+      table_marker.ns = "table";
+      table_marker.header.frame_id = "base_link";
+      table_marker.type = visualization_msgs::Marker::CUBE;
+      table_marker.pose = table_pose;
+      if (shape.type == shape_msgs::SolidPrimitive::BOX) {
+        table_marker.scale.x = shape.dimensions[0];
+        table_marker.scale.y = shape.dimensions[1];
+        table_marker.scale.z = shape.dimensions[2];
+      } else {
+        ROS_INFO("TABLE SHAPE IS NOT A BOX, LOL");
+      }
+      table_marker.color.r = 1;
+      table_marker.color.a = 0.8;
+      marker_pub_.publish(table_marker);
+      // Done publishing table marker
+
       std::vector<Object> objects;
-      SegmentTabletopScene(above_cloud, &objects, coeff);
+      SegmentTabletopScene(above_cloud, &objects);
 
       for (size_t i = 0; i < objects.size(); ++i) {
         const Object& object = objects[i];
