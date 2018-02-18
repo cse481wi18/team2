@@ -1,6 +1,7 @@
 #include "perception/segmentation.h"
 #include "perception/box_fitter.h"
 #include "perception/object.h"
+#include "perception/object_recognizer.h"
 
 #include "pcl/PointIndices.h"
 #include "pcl/point_cloud.h"
@@ -22,6 +23,9 @@
 #include "pcl/common/common.h"
 
 #include "pcl/filters/extract_indices.h"
+
+#include <math.h>
+#include <sstream>
 #include <string>
 
 typedef pcl::PointXYZRGB PointC;
@@ -195,14 +199,16 @@ namespace perception {
     dimensions -> y = max_pcl.y - min_pcl.y; 
     dimensions -> z = max_pcl.z - min_pcl.z;
     pose->orientation.w = 1;
-
   }
 
   Segmenter::Segmenter(const ros::Publisher& table_pub,
   const ros::Publisher& marker_pub,
-  const ros::Publisher& above_surface_pub)
+  const ros::Publisher& above_surface_pub,
+  const ObjectRecognizer& recognizer)
       : table_pub_(table_pub),
-      marker_pub_(marker_pub), above_surface_pub_(above_surface_pub) {}
+      marker_pub_(marker_pub),
+      above_surface_pub_(above_surface_pub),
+      recognizer_(recognizer) {}
 
   void Segmenter::Callback(const sensor_msgs::PointCloud2& msg) {
     // to ROS msg
@@ -222,7 +228,7 @@ namespace perception {
     for (size_t i = 0; i < objects.size(); ++i) {
       const Object& object = objects[i];
 
-    // Publish a bounding box around it.
+      // Publish a bounding box around it.
       visualization_msgs::Marker object_marker;
       object_marker.ns = "objects";
       object_marker.id = i;
@@ -233,6 +239,34 @@ namespace perception {
       object_marker.color.g = 1;
       object_marker.color.a = 0.3;
       marker_pub_.publish(object_marker);
+
+      // Recognize the object.
+      std::string name;
+      double confidence;
+      recognizer_.Recognize(object, &name, &confidence);
+      confidence = round(1000 * confidence) / 1000;
+
+      std::stringstream ss;
+      ss << name << " (" << confidence << ")";
+
+      // Publish the recognition result.
+      visualization_msgs::Marker name_marker;
+      name_marker.ns = "recognition";
+      name_marker.id = i;
+      name_marker.header.frame_id = "base_link";
+      name_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+      name_marker.pose.position = object.pose.position;
+      name_marker.pose.position.z += 0.1;
+      name_marker.pose.orientation.w = 1;
+      name_marker.scale.x = 0.025;
+      name_marker.scale.y = 0.025;
+      name_marker.scale.z = 0.025;
+      name_marker.color.r = 0;
+      name_marker.color.g = 0;
+      name_marker.color.b = 1.0;
+      name_marker.color.a = 1.0;
+      name_marker.text = ss.str();
+      marker_pub_.publish(name_marker);
     }
   }
 } // namespace perception

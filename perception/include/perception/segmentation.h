@@ -8,6 +8,7 @@
 #include "geometry_msgs/Vector3.h"
 #include "pcl/ModelCoefficients.h"
 #include "perception/object.h"
+#include "perception/object_recognizer.h"
 
 #include <vector>
 
@@ -48,12 +49,14 @@ class Segmenter {
  public:
   Segmenter(const ros::Publisher& table_pub,
    const ros::Publisher& marker_pub,
-   const ros::Publisher& above_surface_pub);
+   const ros::Publisher& above_surface_pub,
+   const ObjectRecognizer& recognizer);
   void Callback(const sensor_msgs::PointCloud2& msg);
 
  private:
   ros::Publisher table_pub_;
   ros::Publisher marker_pub_;
   ros::Publisher above_surface_pub_;
+  ObjectRecognizer recognizer_;
 };
 }  // namespace perception
