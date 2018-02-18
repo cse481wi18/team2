@@ -205,123 +205,59 @@ namespace perception {
       marker_pub_(marker_pub), above_surface_pub_(above_surface_pub) {}
 
   void Segmenter::Callback(const sensor_msgs::PointCloud2& msg) {
+    // to ROS msg
     PointCloudC::Ptr cloud_unfiltered(new PointCloudC());
     pcl::fromROSMsg(msg, *cloud_unfiltered);
 
+    // remove NaN points
     PointCloudC::Ptr cloud(new PointCloudC());
     std::vector<int> index;
     pcl::removeNaNFromPointCloud(*cloud_unfiltered, *cloud, index);
 
-    pcl::PointIndices::Ptr table_inliers(new pcl::PointIndices());
-    pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients());
-    SegmentSurface(cloud, table_inliers, coeff);
+    // get the objects on the table top
+    std::vector<Object> objects;
+    SegmentTabletopScene(cloud, &objects);
 
-    // Extract subset of original_cloud into subset_cloud:
-    PointCloudC::Ptr subset_cloud(new PointCloudC());
-    pcl::ExtractIndices<PointC> extract;
-    extract.setInputCloud(cloud);
-    extract.setIndices(table_inliers);
-    if (table_inliers->indices.size() == 0) {
-      ROS_INFO("error");
-    } else {
-      extract.filter(*subset_cloud);
+    // make a bounding box around each objects
+    for (size_t i = 0; i < objects.size(); ++i) {
+      const Object& object = objects[i];
 
-      // Publish above_cloud
-      PointCloudC::Ptr above_cloud(new PointCloudC());
-      pcl::ExtractIndices<PointC> extract2;
-      extract2.setInputCloud(cloud);
-      extract2.setNegative(true);
-      extract2.setIndices(table_inliers);
-      extract2.filter(*above_cloud);
-
-      sensor_msgs::PointCloud2 msg_out3;
-      pcl::toROSMsg(*above_cloud, msg_out3);
-      above_surface_pub_.publish(msg_out3); 
-      // Done publishing above_cloud
-
-      // Publish table marker
-      PointCloudC::Ptr extract_out(new PointCloudC());
-      shape_msgs::SolidPrimitive shape;
-      geometry_msgs::Pose table_pose;
-      simple_grasping::extractShape(*subset_cloud, coeff, *extract_out, shape, table_pose);
-  
-      // Sets the pose and dimensions of a box surrounding the given point cloud.
-      visualization_msgs::Marker table_marker;
-      table_marker.ns = "table";
-      table_marker.header.frame_id = "base_link";
-      table_marker.type = visualization_msgs::Marker::CUBE;
-      table_marker.pose = table_pose;
-      if (shape.type == shape_msgs::SolidPrimitive::BOX) {
-        table_marker.scale.x = shape.dimensions[0];
-        table_marker.scale.y = shape.dimensions[1];
-        table_marker.scale.z = shape.dimensions[2];
-      } else {
-        ROS_INFO("TABLE SHAPE IS NOT A BOX, LOL");
-      }
-      table_marker.color.r = 1;
-      table_marker.color.a = 0.8;
-      marker_pub_.publish(table_marker);
-      // Done publishing table marker
-
-      std::vector<Object> objects;
-      SegmentTabletopScene(above_cloud, &objects);
-
-      for (size_t i = 0; i < objects.size(); ++i) {
-        const Object& object = objects[i];
-        
-        // Publish a bounding box around it.
-        visualization_msgs::Marker object_marker;
-        object_marker.ns = "objects";
-        object_marker.id = i;
-        object_marker.header.frame_id = "base_link";
-        object_marker.type = visualization_msgs::Marker::CUBE;
-        object_marker.pose = object.pose;
-        object_marker.scale = object.dimensions;
-        object_marker.color.g = 1;
-        object_marker.color.a = 0.3;
-        marker_pub_.publish(object_marker);
-
-        // // Reify indices into a point cloud of the object.
-        // pcl::PointIndices::Ptr indices(new pcl::PointIndices);
-        // *indices = object_indices[i];
-        // PointCloudC::Ptr object_cloud(new PointCloudC());
-        // // TODO: fill in object_cloud using indices
-        // pcl::ExtractIndices<PointC> extract2;
-        // extract2.setInputCloud(cloud);
-        // extract2.setIndices(indices);
-        // extract2.filter(*object_cloud);
-
-        // PointCloudC::Ptr extract_out2(new PointCloudC());
-        // shape_msgs::SolidPrimitive shape2;
-        // geometry_msgs::Pose table_pose2;
-        // FitBox(*object_cloud, coeff, *extract_out2, shape2, table_pose2);
-
-        // // Publish a bounding box around it.
-        // visualization_msgs::Marker object_marker;
-        // object_marker.ns = "objects";
-        // object_marker.id = i;
-        // object_marker.header.frame_id = "base_link";
-        // object_marker.type = visualization_msgs::Marker::CUBE;
-        // object_marker.pose = table_pose2;
-        // if (shape2.type == shape_msgs::SolidPrimitive::BOX) {
-        //   object_marker.scale.x = shape2.dimensions[0];
-        //   object_marker.scale.y = shape2.dimensions[1];
-        //   object_marker.scale.z = shape2.dimensions[2];
-        // } else if (shape2.type == shape_msgs::SolidPrimitive::SPHERE) {
-        //   ROS_INFO("Some object is sphere");
-        // } else if (shape2.type == shape_msgs::SolidPrimitive::CYLINDER) {
-        //   ROS_INFO("Some object is cylinder");
-        // } else if (shape2.type == shape_msgs::SolidPrimitive::CONE) {
-        //   ROS_INFO("Some object is cone");
-        // } else {
-        //   ROS_INFO("Some object is ???");
-        // }
-        // // GetAxisAlignedBoundingBox(object_cloud, &object_marker.pose,
-        // //                           &object_marker.scale);
-        // object_marker.color.g = 1;
-        // object_marker.color.a = 0.3;
-        // marker_pub_.publish(object_marker);
-      }
+    // Publish a bounding box around it.
+      visualization_msgs::Marker object_marker;
+      object_marker.ns = "objects";
+      object_marker.id = i;
+      object_marker.header.frame_id = "base_link";
+      object_marker.type = visualization_msgs::Marker::CUBE;
+      object_marker.pose = object.pose;
+      object_marker.scale = object.dimensions;
+      object_marker.color.g = 1;
+      object_marker.color.a = 0.3;
+      marker_pub_.publish(object_marker);
     }
   }
-}  // namespace perception
+} // namespace perception
+
+// TABLE MARKER PUBLISHER
+//   // Publish table marker
+//   PointCloudC::Ptr extract_out(new PointCloudC());
+//   shape_msgs::SolidPrimitive shape;
+//   geometry_msgs::Pose table_pose;
+//   simple_grasping::extractShape(*subset_cloud, coeff, *extract_out, shape, table_pose);
+
+// // Sets the pose and dimensions of a box surrounding the given point cloud.
+// visualization_msgs::Marker table_marker;
+// table_marker.ns = "table";
+// table_marker.header.frame_id = "base_link";
+// table_marker.type = visualization_msgs::Marker::CUBE;
+// table_marker.pose = table_pose;
+// if (shape.type == shape_msgs::SolidPrimitive::BOX) {
+//   table_marker.scale.x = shape.dimensions[0];
+//   table_marker.scale.y = shape.dimensions[1];
+//   table_marker.scale.z = shape.dimensions[2];
+// } else {
+//   ROS_INFO("TABLE SHAPE IS NOT A BOX, LOL");
+// }
+// table_marker.color.r = 1;
+// table_marker.color.a = 0.8;
+// marker_pub_.publish(table_marker);
+// // Done publishing table marker

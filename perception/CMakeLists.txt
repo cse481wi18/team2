@@ -105,3 +105,7 @@ add_dependencies(perception_box_fitter ${${PROJECT_NAME}_EXPORTED_TARGETS} ${cat
 target_link_libraries(perception_box_fitter
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES})
+
+add_library(perception_object_recognizer src/object_recognizer.cpp)
+add_dependencies(perception_object_recognizer ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(perception_object_recognizer ${catkin_LIBRARIES})
