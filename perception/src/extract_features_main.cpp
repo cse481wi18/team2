@@ -85,6 +85,7 @@ int main(int argc, char** argv) {
   perception_msgs::ObjectFeatures features;
   features.object_name = label;
   perception::ExtractSizeFeatures(object, &features);
+  perception::ExtractColorFeatures(object, &features);
 
   rosbag::Bag bag_out;
   bag_out.open(label + "_label.bag", rosbag::bagmode::Write);

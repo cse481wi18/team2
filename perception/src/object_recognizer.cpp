@@ -57,6 +57,7 @@ void ObjectRecognizer::Recognize(const Object& object, std::string* name,
   // TODO: extract features from the object
   perception_msgs::ObjectFeatures features;
   perception::ExtractSizeFeatures(object, &features);
+  perception::ExtractColorFeatures(object, &features);
 
   double min_distance = std::numeric_limits<double>::max();
   double second_min_distance = std::numeric_limits<double>::max();
