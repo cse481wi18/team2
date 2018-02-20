@@ -24,6 +24,8 @@
 
 #include "pcl/filters/extract_indices.h"
 
+#include "perception_msgs/TennisBallPoses.h"
+
 #include <math.h>
 #include <sstream>
 #include <string>
@@ -224,10 +226,26 @@ namespace perception {
     std::vector<Object> objects;
     SegmentTabletopScene(cloud, &objects);
 
+    perception_msgs::TennisBallPoses tennis_ball_poses2;
+
     // make a bounding box around each objects
     for (size_t i = 0; i < objects.size(); ++i) {
       const Object& object = objects[i];
+      
+      // Recognize the object.
+      std::string name;
+      double confidence;
+      //recognizer_.Recognize(object, &name, &confidence);
+      confidence = recognizer_.RecognizeIndex(object, 0);
+      confidence = round(1000 * confidence) / 1000;
 
+      double recognize_threshold;
+      ros::param::param("recognize_threshold", recognize_threshold, 1000.0);
+
+      if (confidence < recognize_threshold) {
+        tennis_ball_poses2.poses.push_back(object.pose);
+      }
+      
       // Publish a bounding box around it.
       visualization_msgs::Marker object_marker;
       object_marker.ns = "objects";
@@ -238,13 +256,12 @@ namespace perception {
       object_marker.scale = object.dimensions;
       object_marker.color.g = 1;
       object_marker.color.a = 0.3;
+      if (confidence < recognize_threshold) {
+        object_marker.color.b = 1;
+      }
+
       marker_pub_.publish(object_marker);
 
-      // Recognize the object.
-      std::string name;
-      double confidence;
-      recognizer_.Recognize(object, &name, &confidence);
-      confidence = round(1000 * confidence) / 1000;
 
       std::stringstream ss;
       ss << name << " (" << confidence << ")";
@@ -266,8 +283,12 @@ namespace perception {
       name_marker.color.b = 1.0;
       name_marker.color.a = 1.0;
       name_marker.text = ss.str();
+
       marker_pub_.publish(name_marker);
     }
+
+    for (std::vector<geometry_msgs::Pose>::const_iterator i = tennis_ball_poses2.poses.begin(); i != tennis_ball_poses2.poses.end(); ++i)
+      std::cout << *i;
   }
 } // namespace perception
 

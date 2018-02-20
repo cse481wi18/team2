@@ -3,15 +3,18 @@ project(perception_msgs)
 
 find_package(catkin REQUIRED COMPONENTS
   message_generation
+  geometry_msgs
 )
 
 add_message_files(
   FILES
   ObjectFeatures.msg
+  TennisBallPoses.msg
 )
 
 generate_messages(
   DEPENDENCIES
+  geometry_msgs
 )
 
 catkin_package(
