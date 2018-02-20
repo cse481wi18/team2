@@ -64,10 +64,12 @@ void ObjectRecognizer::Recognize(const Object& object, std::string* name,
   for (size_t i = 0; i < dataset_.size(); ++i) {
     // TODO: compare the features of the input object to the features of the current dataset object.
     double distance = EuclideanDistance(features.values, dataset_[i].values);
+    std::cout << "distance for object " << i << " = " << dataset_[i].object_name << " is " << distance << std::endl;
     if (distance < min_distance) {
       second_min_distance = min_distance;
       min_distance = distance;
       *name = dataset_[i].object_name;
+      std::cout << "choosing object " << dataset_[i].object_name << std::endl;
     } else if (distance < second_min_distance) {
       second_min_distance = distance;
     }
@@ -75,5 +77,6 @@ void ObjectRecognizer::Recognize(const Object& object, std::string* name,
 
   // Confidence is based on the distance to the two nearest results.
   *confidence = 1 - min_distance / (min_distance + second_min_distance);
+  std::cout << "confidence is " << *confidence << std::endl;
 }
 }  // namespace perception
