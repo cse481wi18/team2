@@ -206,10 +206,12 @@ namespace perception {
   Segmenter::Segmenter(const ros::Publisher& table_pub,
   const ros::Publisher& marker_pub,
   const ros::Publisher& above_surface_pub,
+  const ros::Publisher& ball_poses_pub,
   const ObjectRecognizer& recognizer)
       : table_pub_(table_pub),
       marker_pub_(marker_pub),
       above_surface_pub_(above_surface_pub),
+      ball_poses_pub_(ball_poses_pub),
       recognizer_(recognizer) {}
 
   void Segmenter::Callback(const sensor_msgs::PointCloud2& msg) {
@@ -245,6 +247,7 @@ namespace perception {
       if (confidence < recognize_threshold) {
         tennis_ball_poses2.poses.push_back(object.pose);
       }
+      ball_poses_pub_.publish(tennis_ball_poses2);
       
       // Publish a bounding box around it.
       visualization_msgs::Marker object_marker;

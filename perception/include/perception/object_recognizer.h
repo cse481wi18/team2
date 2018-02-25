@@ -18,6 +18,7 @@ class ObjectRecognizer {
   explicit ObjectRecognizer(
       const std::vector<perception_msgs::ObjectFeatures>& dataset);
   void Recognize(const Object& object, std::string* name, double* confidence);
+  double RecognizeIndex(const Object& object, int index);
 
  private:
   std::vector<perception_msgs::ObjectFeatures> dataset_;

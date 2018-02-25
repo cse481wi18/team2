@@ -10,7 +10,8 @@
   <param name="crop_min_z" value="0.7" />
   <param name="crop_max_y" value="0.47" />
   <param name="crop_min_y" value="-0.34" />
-  <param name="size_weight" value="3" />
+  <param name="size_weight" value="5" />
+  <param name="recognize_threshold" value="0.55" />
   <!--<node pkg="perception" type="point_cloud_demo_segmenter" name="point_cloud_demo_segmenter" args="$(arg data_dir)" output="screen">
     <remap from="cloud_in" to="mock_point_cloud" />
   </node>-->

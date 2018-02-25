@@ -4,6 +4,7 @@
 #include "perception/segmentation.h"
 #include "perception/object_recognizer.h"
 #include "perception_msgs/ObjectFeatures.h"
+#include "perception_msgs/TennisBallPoses.h"
 #include "ros/ros.h"
 #include "sensor_msgs/PointCloud2.h"
 
@@ -30,6 +31,10 @@ int main(int argc, char** argv) {
   ros::Publisher above_surface_pub =
       nh.advertise<sensor_msgs::PointCloud2>("above_surface_cloud", 1, true);
 
+  ros::Publisher ball_poses_pub =
+      nh.advertise<perception_msgs::TennisBallPoses>("recognizer/object_positions", 1, true);
+
+
   ros::Subscriber sub =
       nh.subscribe("cloud_in", 1, &perception::Cropper::Callback, &cropper);
 
@@ -38,7 +43,10 @@ int main(int argc, char** argv) {
   perception::LoadData(data_dir, &dataset);
   perception::ObjectRecognizer recognizer(dataset);
 
-  perception::Segmenter segmenter(table_pub, marker_pub, above_surface_pub, recognizer);
+  perception::Segmenter segmenter(table_pub, marker_pub, above_surface_pub, ball_poses_pub, recognizer);
+
+  
+  
   ros::Subscriber sub2 =
       nh.subscribe("cropped_cloud", 1, &perception::Segmenter::Callback, &segmenter);
     

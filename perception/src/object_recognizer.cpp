@@ -79,4 +79,16 @@ void ObjectRecognizer::Recognize(const Object& object, std::string* name,
   *confidence = 1 - min_distance / (min_distance + second_min_distance);
   std::cout << "confidence is " << *confidence << std::endl;
 }
+
+double ObjectRecognizer::RecognizeIndex(const Object& object, int index) {
+  perception_msgs::ObjectFeatures features;
+  perception::ExtractSizeFeatures(object, &features);
+  perception::ExtractColorFeatures(object, &features);
+
+  perception_msgs::ObjectFeatures target_features = dataset_[index];
+  double distance = EuclideanDistance(features.values, target_features.values);
+
+  std::cout << "  Difference between " << dataset_[index].object_name << " is " << distance << std::endl;
+  return distance;
+}  
 }  // namespace perception

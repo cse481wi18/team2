@@ -50,6 +50,7 @@ class Segmenter {
   Segmenter(const ros::Publisher& table_pub,
    const ros::Publisher& marker_pub,
    const ros::Publisher& above_surface_pub,
+   const ros::Publisher& ball_poses_pub,
    const ObjectRecognizer& recognizer);
   void Callback(const sensor_msgs::PointCloud2& msg);
 
@@ -57,6 +58,7 @@ class Segmenter {
   ros::Publisher table_pub_;
   ros::Publisher marker_pub_;
   ros::Publisher above_surface_pub_;
+  ros::Publisher ball_poses_pub_;
   ObjectRecognizer recognizer_;
 };
 }  // namespace perception
