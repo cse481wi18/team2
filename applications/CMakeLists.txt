@@ -7,6 +7,7 @@ project(applications)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
+  core
 )
 
 ## System dependencies are found with CMake's conventions
@@ -101,7 +102,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES applications
-#  CATKIN_DEPENDS roscpp rospy
+  CATKIN_DEPENDS roscpp rospy core
 #  DEPENDS system_lib
 )
 

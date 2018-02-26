@@ -67,10 +67,18 @@ namespace perception {
       geometry_msgs::Pose table_pose2;
 
       pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients());
-      coeff->values.push_back(-0.007);
-      coeff->values.push_back(0.019);
-      coeff->values.push_back(0.999);
-      coeff->values.push_back(-0.737);
+      double table_coeff_0;
+      ros::param::param("table_coeff_0", table_coeff_0, 0.0);
+      double table_coeff_1;
+      ros::param::param("table_coeff_1", table_coeff_1, 0.0);
+      double table_coeff_2;
+      ros::param::param("table_coeff_2", table_coeff_2, 1.0);
+      double table_coeff_3;
+      ros::param::param("table_coeff_3", table_coeff_3, 0.0);
+      coeff->values.push_back(table_coeff_0);
+      coeff->values.push_back(table_coeff_1);
+      coeff->values.push_back(table_coeff_2);
+      coeff->values.push_back(table_coeff_3);
       FitBox(*object_cloud, coeff, *extract_out2, shape2, table_pose2);
 
       Object obj = Object();
@@ -82,13 +90,18 @@ namespace perception {
       obj.dimensions.y = shape2.dimensions[1];
       obj.dimensions.z = shape2.dimensions[2];
       objects->push_back(obj);
-
-      // std::cout << "lol wtf" << std::endl;
     }
   }
 
   void SegmentTabletopScene(PointCloudC::Ptr table_and_above_cloud,
                             std::vector<Object>* objects) {
+    ros::NodeHandle nh;
+    ros::Publisher table_pub =
+        nh.advertise<sensor_msgs::PointCloud2>("test_table_cloud", 1, true);
+    ros::Publisher above_pub =
+        nh.advertise<sensor_msgs::PointCloud2>("test_above_cloud", 1, true);
+
+
     // Separate table and above
     pcl::PointIndices::Ptr table_inliers(new pcl::PointIndices());
     pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients());
@@ -119,26 +132,35 @@ namespace perception {
     seg.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
     seg.setMethodType(pcl::SAC_RANSAC);
     // Set the distance to the plane for a point to be an inlier.
-    seg.setDistanceThreshold(0.01);
+    double surface_threshold;
+    ros::param::param("surface_threshold", surface_threshold, 0.01);
+    seg.setDistanceThreshold(surface_threshold);
     seg.setInputCloud(cloud);
+
+    double surface_angle_threshold;
+    ros::param::param("surface_angle_threshold", surface_angle_threshold, 10.0);
 
     // Make sure that the plane is perpendicular to Z-axis, 10 degree tolerance.
     Eigen::Vector3f axis;
     axis << 0, 0, 1;
     seg.setAxis(axis);
-    seg.setEpsAngle(pcl::deg2rad(10.0));
+    seg.setEpsAngle(pcl::deg2rad(surface_angle_threshold));
+
+    std::cout << "surface_threshold = " << surface_threshold << std::endl;
+    std::cout << "surface_angle_threshold = " << surface_angle_threshold << std::endl;
 
     // coeff contains the coefficients of the plane:
     // ax + by + cz + d = 0
     double distance_above_plane;
     ros::param::param("distance_above_plane", distance_above_plane, 0.005);
+    std::cout << "distance_above_plane = " << distance_above_plane << std::endl;
 
     seg.segment(indices_internal, *coeff);
     
     // Print coefficients    // for (std::vector<float>::const_iterator i = coeff->values.begin(); i != coeff->values.end(); ++i)
     //     std::cout << *i << std::endl;
-    // for (std::vector<float>::const_iterator i = coeff->values.begin(); i != coeff->values.end(); ++i)
-    //     std::cout << *i << std::endl;
+    for (std::vector<float>::const_iterator i = coeff->values.begin(); i != coeff->values.end(); ++i)
+        std::cout << *i << std::endl;
 
     // Build custom indices that ignores points above the plane.
     for (size_t i=0; i<indices_internal.indices.size(); ++i) {
@@ -224,11 +246,53 @@ namespace perception {
     std::vector<int> index;
     pcl::removeNaNFromPointCloud(*cloud_unfiltered, *cloud, index);
 
+    std::cout << "Cloud has " << cloud->points.size() << " indices" << std::endl;
+
+    //************ REDUNDANT CODE FOR DEBUG PURPOSES - DO NOT REMOVE ***************
     // get the objects on the table top
     std::vector<Object> objects;
-    SegmentTabletopScene(cloud, &objects);
+
+    // Separate table and above
+    pcl::PointIndices::Ptr table_inliers(new pcl::PointIndices());
+    pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients());
+    SegmentSurface(cloud, table_inliers, coeff);
+    if (table_inliers->indices.size() == 0) {
+      ROS_INFO("Can't find table! Aborting...");
+      return;
+    } else {
+      std::cout << "Table has " << table_inliers->indices.size() << " indices" << std::endl;
+    }
+
+    ros::NodeHandle nh;
+    nh.setParam("table_coeff_0", coeff->values[0]);
+    nh.setParam("table_coeff_1", coeff->values[1]);
+    nh.setParam("table_coeff_2", coeff->values[2]);
+    nh.setParam("table_coeff_3", coeff->values[3]);
+
+    // Get above_cloud
+    PointCloudC::Ptr table_cloud(new PointCloudC());
+    pcl::ExtractIndices<PointC> extract3;
+    extract3.setInputCloud(cloud);
+    extract3.setIndices(table_inliers);
+    extract3.filter(*table_cloud);
+
+    // Get above_cloud
+    PointCloudC::Ptr above_cloud(new PointCloudC());
+    pcl::ExtractIndices<PointC> extract2;
+    extract2.setInputCloud(cloud);
+    extract2.setNegative(true);
+    extract2.setIndices(table_inliers);
+    extract2.filter(*above_cloud);
+
+    SegmentTopScene(above_cloud, &objects);
+
+    table_pub_.publish(table_cloud);
+    above_surface_pub_.publish(above_cloud);
+    //************* REDUNDANT CODE FOR DEBUG PURPOSES - DO NOT REMOVE ****************
 
     perception_msgs::TennisBallPoses tennis_ball_poses2;
+
+    std::cout << "Found " << objects.size() << " objects" << std::endl;
 
     // make a bounding box around each objects
     for (size_t i = 0; i < objects.size(); ++i) {
@@ -290,8 +354,8 @@ namespace perception {
       marker_pub_.publish(name_marker);
     }
 
-    for (std::vector<geometry_msgs::Pose>::const_iterator i = tennis_ball_poses2.poses.begin(); i != tennis_ball_poses2.poses.end(); ++i)
-      std::cout << *i;
+    // for (std::vector<geometry_msgs::Pose>::const_iterator i = tennis_ball_poses2.poses.begin(); i != tennis_ball_poses2.poses.end(); ++i)
+    //   std::cout << *i;
   }
 } // namespace perception
 

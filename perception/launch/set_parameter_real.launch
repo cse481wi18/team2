@@ -1,17 +1,19 @@
 <launch>
   <!--<arg name="data_dir" />-->
-  <param name="ec_cluster_tolerance" value="0.03" />
-  <param name="ec_min_cluster_size" value="50" />
-  <param name="ec_max_cluster_size" value="7500" />
+  <param name="ec_cluster_tolerance" value="0.01" />
+  <param name="ec_min_cluster_size" value="100" />
+  <param name="ec_max_cluster_size" value="500" />
   <param name="distance_above_plane" value="0.01" />
-  <param name="crop_min_x" value="0.0" />
-  <param name="crop_max_z" value="1.5" />
-  <param name="crop_max_x" value="1.05" />
-  <param name="crop_min_z" value="0.7" />
-  <param name="crop_max_y" value="0.47" />
-  <param name="crop_min_y" value="-0.34" />
+  <param name="surface_threshold" value="0.02" />
+  <param name="surface_angle_threshold" value="20" />
+  <param name="crop_min_x" value="-9999.0" />
+  <param name="crop_max_x" value="9999.0" />
+  <param name="crop_min_y" value="-9999.0" />
+  <param name="crop_max_y" value="9999.0" />
+  <param name="crop_min_z" value="-9999.0" />
+  <param name="crop_max_z" value="10" />
   <param name="size_weight" value="5" />
-  <param name="recognize_threshold" value="0.55" />
+  <param name="recognize_threshold" value="0.8" />
   <!--<node pkg="perception" type="point_cloud_demo_segmenter" name="point_cloud_demo_segmenter" args="$(arg data_dir)" output="screen">
     <remap from="cloud_in" to="mock_point_cloud" />
   </node>-->
