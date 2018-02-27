@@ -1,6 +1,7 @@
 import rospy
 import numpy as np
 import math
+from tf import TransformListener
 from perception_msgs.msg import TennisBallPoses
 from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, PoseStamped, Point
 from visualization_msgs.msg import Marker
@@ -13,6 +14,10 @@ def is_too_close(p1, p2):
 
 class Planner:
     def __init__(self):
+        # self.header_frame_id = None
+        # self.header_init = False
+        self.listener = TransformListener(rospy.Duration(10))
+
         self.robot_pose = None # Point
         #self.last_poses = []
         self.all_poses = [] # [Point]
@@ -24,8 +29,19 @@ class Planner:
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
         
     
+    # def init_header(self):
+    #     if self.header_frame_id is not None:
+    #         self.listener.waitForTransform('/map', self.header_frame_id, rospy.Time(), rospy.Duration(4.0))
+    #         self.header_init = True
+    
     def get_pose(self):
         # (Planner) -> [?]
+        # while (self.header_frame_id is None)
+        # if self.header_init is False:
+        #     self.init_header()
+        #     if self.header_init is False:
+        #         return []
+
         print "", self.robot_pose
         while self.all_poses is [] or self.robot_pose is None:
             return None
@@ -46,7 +62,7 @@ class Planner:
             object_marker = Marker()
             object_marker.ns = "objects"
             object_marker.id = i
-            object_marker.header.frame_id = "map"
+            object_marker.header.frame_id = self.header_frame_id
             object_marker.type = Marker.CUBE
             object_marker.pose = pose
             object_marker.scale.x = 0.1
@@ -73,7 +89,10 @@ class Planner:
 
     def save_ball_poses_cb(self, msg):
         # (Planner, TennisBallPoses) -> None
-        new_poses = map(lambda p: p.position, msg.poses)
+        if len(msg.poses) > 0:
+            self.header_frame_id = msg.poses[0].header.frame_id
+
+        new_poses = map(lambda p: p.pose.position, msg.poses)
         # Merge poses
         old_poses = self.all_poses
         valid_old_poses = []

@@ -2,13 +2,13 @@
   <!--<arg name="data_dir" />-->
   <param name="ec_cluster_tolerance" value="0.01" />
   <param name="ec_min_cluster_size" value="100" />
-  <param name="ec_max_cluster_size" value="500" />
+  <param name="ec_max_cluster_size" value="2000" />
   <param name="distance_above_plane" value="0.01" />
-  <param name="surface_threshold" value="0.02" />
-  <param name="surface_angle_threshold" value="20" />
-  <param name="crop_min_x" value="-9999.0" />
-  <param name="crop_max_x" value="9999.0" />
-  <param name="crop_min_y" value="-9999.0" />
+  <param name="surface_threshold" value="0.025" />
+  <param name="surface_angle_threshold" value="1000" />
+  <param name="crop_min_x" value="-0.35" />
+  <param name="crop_max_x" value="0.35" />
+  <param name="crop_min_y" value="-0.4" />
   <param name="crop_max_y" value="9999.0" />
   <param name="crop_min_z" value="-9999.0" />
   <param name="crop_max_z" value="10" />

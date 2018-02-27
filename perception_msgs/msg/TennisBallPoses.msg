@@ -1,1 +1,1 @@
-geometry_msgs/Pose[] poses # poses of all tennis balls
+geometry_msgs/PoseStamped[] poses # poses of all tennis balls

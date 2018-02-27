@@ -10,11 +10,11 @@
 #include "ros/ros.h"
 #include "sensor_msgs/PointCloud2.h"
 
+
 #include <tf/transform_listener.h>
-// #include <tf.h>
-// #include <transform_datatypes.h>
 
 #include "geometry_msgs/Pose.h"
+// #include "geometry_msgs/PoseStamped.h"
 #include "simple_grasping/shape_extraction.h"
 #include "shape_msgs/SolidPrimitive.h"
 
@@ -291,6 +291,7 @@ namespace perception {
 
     std::cout << "Found " << objects.size() << " objects" << std::endl;
 
+
     // make a bounding box around each objects
     for (size_t i = 0; i < objects.size(); ++i) {
       const Object& object = objects[i];
@@ -306,15 +307,11 @@ namespace perception {
       ros::param::param("recognize_threshold", recognize_threshold, 1000.0);
 
       if (confidence < recognize_threshold) {
-        tf::TransformListener listener;
-        listener.waitForTransform("/map", msg.header.frame_id, msg.header.stamp, ros::Duration(5.0));
         geometry_msgs::PoseStamped stamped_pose;
         stamped_pose.pose = object.pose;
         stamped_pose.header.frame_id = msg.header.frame_id;
         // stamped_pose.header.stamp = ros::Time::now();
-        geometry_msgs::PoseStamped converted_pose;
-        listener.transformPose("/map", stamped_pose, converted_pose);
-        tennis_ball_poses2.poses.push_back(converted_pose.pose);
+        tennis_ball_poses2.poses.push_back(stamped_pose);
       }
       // TODO: transform to map frame!!!
       ball_poses_pub_.publish(tennis_ball_poses2);
