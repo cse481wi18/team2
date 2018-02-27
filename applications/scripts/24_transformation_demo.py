@@ -9,7 +9,9 @@ import visualization_msgs.msg
 import rospy
 import tf.transformations as tft
 
-
+# listener = TransformListener(rospy.Duration(10))
+# listener.waitForTransform('base_link', 'wrist_roll_link', rospy.Time(), rospy.Duration(4.0))
+# ps_base_link = listener.transformPose("base_link", ps)
 
 def wait_for_time():
     """Wait for simulated time to begin.

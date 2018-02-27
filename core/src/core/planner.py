@@ -19,6 +19,7 @@ class Planner:
         self.distance_offset = 0.1 # for future measurement
         self.object_pose_sub = rospy.Subscriber('recognizer/object_positions', TennisBallPoses, self.save_ball_poses_cb)
         self.ordered_pub = rospy.Publisher('/ordered_balls', TennisBallPoses, queue_size=1)
+        self.unordered_pub = rospy.Publisher('/unordered_balls', TennisBallPoses, queue_size=1)
         self.robot_pose_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.save_robot_pose_cb)
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
         
@@ -45,7 +46,7 @@ class Planner:
             object_marker = Marker()
             object_marker.ns = "objects"
             object_marker.id = i
-            object_marker.header.frame_id = "base_link"
+            object_marker.header.frame_id = "map"
             object_marker.type = Marker.CUBE
             object_marker.pose = pose
             object_marker.scale.x = 0.1

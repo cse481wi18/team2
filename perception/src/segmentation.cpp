@@ -10,6 +10,9 @@
 #include "ros/ros.h"
 #include "sensor_msgs/PointCloud2.h"
 
+#include <tf/transform_listener.h>
+// #include <tf.h>
+// #include <transform_datatypes.h>
 
 #include "geometry_msgs/Pose.h"
 #include "simple_grasping/shape_extraction.h"
@@ -79,6 +82,7 @@ namespace perception {
       coeff->values.push_back(table_coeff_1);
       coeff->values.push_back(table_coeff_2);
       coeff->values.push_back(table_coeff_3);
+      
       FitBox(*object_cloud, coeff, *extract_out2, shape2, table_pose2);
 
       Object obj = Object();
@@ -95,13 +99,6 @@ namespace perception {
 
   void SegmentTabletopScene(PointCloudC::Ptr table_and_above_cloud,
                             std::vector<Object>* objects) {
-    ros::NodeHandle nh;
-    ros::Publisher table_pub =
-        nh.advertise<sensor_msgs::PointCloud2>("test_table_cloud", 1, true);
-    ros::Publisher above_pub =
-        nh.advertise<sensor_msgs::PointCloud2>("test_above_cloud", 1, true);
-
-
     // Separate table and above
     pcl::PointIndices::Ptr table_inliers(new pcl::PointIndices());
     pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients());
@@ -309,15 +306,24 @@ namespace perception {
       ros::param::param("recognize_threshold", recognize_threshold, 1000.0);
 
       if (confidence < recognize_threshold) {
-        tennis_ball_poses2.poses.push_back(object.pose);
+        tf::TransformListener listener;
+        listener.waitForTransform("/map", msg.header.frame_id, msg.header.stamp, ros::Duration(5.0));
+        geometry_msgs::PoseStamped stamped_pose;
+        stamped_pose.pose = object.pose;
+        stamped_pose.header.frame_id = msg.header.frame_id;
+        // stamped_pose.header.stamp = ros::Time::now();
+        geometry_msgs::PoseStamped converted_pose;
+        listener.transformPose("/map", stamped_pose, converted_pose);
+        tennis_ball_poses2.poses.push_back(converted_pose.pose);
       }
+      // TODO: transform to map frame!!!
       ball_poses_pub_.publish(tennis_ball_poses2);
       
       // Publish a bounding box around it.
       visualization_msgs::Marker object_marker;
       object_marker.ns = "objects";
       object_marker.id = i;
-      object_marker.header.frame_id = "base_link";
+      object_marker.header.frame_id = msg.header.frame_id;
       object_marker.type = visualization_msgs::Marker::CUBE;
       object_marker.pose = object.pose;
       object_marker.scale = object.dimensions;
@@ -337,7 +343,7 @@ namespace perception {
       visualization_msgs::Marker name_marker;
       name_marker.ns = "recognition";
       name_marker.id = i;
-      name_marker.header.frame_id = "base_link";
+      name_marker.header.frame_id = msg.header.frame_id;
       name_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
       name_marker.pose.position = object.pose.position;
       name_marker.pose.position.z += 0.1;

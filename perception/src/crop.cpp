@@ -14,6 +14,7 @@ namespace perception {
   void Cropper::Callback(const sensor_msgs::PointCloud2& msg) {
     PointCloudC::Ptr cloud(new PointCloudC());
     pcl::fromROSMsg(msg, *cloud);
+    std::cout << "Cloud based on link: " << msg.header.frame_id << std::endl;
     ROS_INFO("Got point cloud with %ld points", cloud->size());
 
     // crop the points
@@ -46,6 +47,7 @@ namespace perception {
 
     sensor_msgs::PointCloud2 msg_out;
     pcl::toROSMsg(*cropped_cloud, msg_out);
+    msg_out.header.frame_id = msg.header.frame_id;
     pub_.publish(msg_out); 
   }
 }
