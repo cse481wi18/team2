@@ -15,14 +15,15 @@ def main():
   all_poses = []
 
   plan = core.Planner()
+  rospy.sleep(5)
   #   all_poses.extend(return_poses)
   # while return_poses is None:
   #   return_poses = plan.get_pose()
   #   all_poses.extend(return_poses)
-  while True:
-    all_poses = plan.get_pose()
-    print(all_poses)
-    rospy.sleep(1)
+
+  all_poses = plan.get_pose()
+  print(all_poses)
+  plan.goto_first_pose()
   rospy.spin()
 
 if __name__ == "__main__":

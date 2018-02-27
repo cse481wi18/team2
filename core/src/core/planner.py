@@ -18,16 +18,28 @@ class Planner:
         # self.header_init = False
         self.listener = TransformListener(rospy.Duration(10))
 
-        self.robot_pose = None # Point
+        self.robot_point = None # Point
         #self.last_poses = []
-        self.all_poses = [] # [Point]
-        self.distance_offset = 0.1 # for future measurement
+        self.all_points = [] # [Point]
+        self.ordered_poses = []
+        self.distance_offset = 0.6 # for future measurement
         self.object_pose_sub = rospy.Subscriber('recognizer/object_positions', TennisBallPoses, self.save_ball_poses_cb)
         self.ordered_pub = rospy.Publisher('/ordered_balls', TennisBallPoses, queue_size=1)
         self.unordered_pub = rospy.Publisher('/unordered_balls', TennisBallPoses, queue_size=1)
         self.robot_pose_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.save_robot_pose_cb)
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
-        
+        self.goal_pub = rospy.Publisher("/move_base_simple/goal", PoseStamped)
+
+    def goto_first_pose(self):     
+        print "Going to first pose"
+        pose = self.ordered_poses[0]
+        print pose
+        pose.orientation.w = 1
+
+        poseStamped = PoseStamped()
+        poseStamped.header.frame_id = "map"
+        poseStamped.pose = pose
+        self.goal_pub.publish(poseStamped)
     
     # def init_header(self):
     #     if self.header_frame_id is not None:
@@ -42,76 +54,79 @@ class Planner:
         #     if self.header_init is False:
         #         return []
 
-        print "", self.robot_pose
-        while self.all_poses is [] or self.robot_pose is None:
+        print "", self.robot_point
+        while self.all_points is [] or self.robot_point is None:
             return None
-        poses = self.all_poses
-        distances = [self.dist(p, self.robot_pose) for p in poses]
+        points = self.all_points
+        distances = [self.dist(p, self.robot_point) for p in points]
         sorted_idx = np.argsort(distances)
-        ordered_poses = [poses[i] for i in sorted_idx]
-        ordered_poses = [self.get_real_pose(p) for p in ordered_poses]
+        self.ordered_poses = [points[i] for i in sorted_idx]
+        self.ordered_poses = [self.get_real_pose(p) for p in self.ordered_poses]
 
-        distances = [self.dist(p.position, self.robot_pose) for p in ordered_poses]
+        distances = [self.dist(p.position, self.robot_point) for p in self.ordered_poses]
         print distances
 
-        self.ordered_pub.publish(ordered_poses)
+        self.ordered_pub.publish(self.ordered_poses)
 
         # Visualize
         i = 100003
-        for pose in ordered_poses:
+        for pose in self.ordered_poses:
             object_marker = Marker()
             object_marker.ns = "objects"
             object_marker.id = i
-            object_marker.header.frame_id = self.header_frame_id
+            object_marker.header.frame_id = "map"
             object_marker.type = Marker.CUBE
             object_marker.pose = pose
             object_marker.scale.x = 0.1
             object_marker.scale.y = 0.1
             object_marker.scale.z = 0.1
             object_marker.color.r = 1
-            object_marker.color.g = 1
-            object_marker.color.a = 0.3
+            object_marker.color.g = 0
+            object_marker.color.a = 0.5
             self.marker_pub.publish(object_marker)
             i += 1
 
-        return ordered_poses
+        return self.ordered_poses
     
-    def get_real_pose(self, ball_pose):
+    def get_real_pose(self, ball_point):
         # (Planner, Point) -> Pose
-        dist = self.dist(self.robot_pose, ball_pose)
+        dist = self.dist(self.robot_point, ball_point)
         rate = self.distance_offset / dist
-        dx = rate * (ball_pose.x - self.robot_pose.x)
-        dy = rate * (ball_pose.y - self.robot_pose.y)
+        dx = rate * (ball_point.x - self.robot_point.x)
+        dy = rate * (ball_point.y - self.robot_point.y)
         pose = Pose()
-        pose.position.x = ball_pose.x - dx
-        pose.position.y = ball_pose.y - dy
+        pose.position.x = ball_point.x - dx
+        pose.position.y = ball_point.y - dy
         return pose
 
     def save_ball_poses_cb(self, msg):
         # (Planner, TennisBallPoses) -> None
         if len(msg.poses) > 0:
             self.header_frame_id = msg.poses[0].header.frame_id
+            self.listener.waitForTransform('/map', self.header_frame_id, rospy.Time(), rospy.Duration(4.0))
 
-        new_poses = map(lambda p: p.pose.position, msg.poses)
+        new_points = map(lambda p: self.listener.transformPose("map", p).pose.position, msg.poses)
+
         # Merge poses
-        old_poses = self.all_poses
-        valid_old_poses = []
-        for p in old_poses:
+        old_points = self.all_points
+        valid_old_points = []
+        for p in old_points:
             too_close = False
-            for q in new_poses:
+            for q in new_points:
                 if is_too_close(p, q):
                     too_close = True
                     break
             if not too_close:
-                valid_old_poses.append(p)
-        self.all_poses = valid_old_poses + new_poses
+                valid_old_points.append(p)
+        self.all_points = valid_old_points + new_points
 
     def save_robot_pose_cb(self, robot_pose_msg):
         # (Planner, PoseWithCovarianceStamped) -> None
-        self.robot_pose = robot_pose_msg.pose.pose.position
+        self.robot_point = robot_pose_msg.pose.pose.position
     
     def dist(self, x, y):
         # (Planner, Point, Point) -> double
         dx = (x.x - y.x) ** 2
         dy = (x.y - y.y) ** 2
         return np.sqrt(dx + dy)
+
