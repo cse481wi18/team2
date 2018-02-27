@@ -41,46 +41,21 @@ class Planner:
 
         self.listener = TransformListener(rospy.Duration(10))
 
-        self.robot_point = None # Point
+         # Point
         #self.last_poses = []
         self.all_points = [] # [Point]
         self.ordered_object_points = [] # [Point]
-        self.ordered_poses = [] #
+        self.ordered_pickup_poses = [] #
         self.distance_offset = 0.5 # for future measurement
         self.object_pose_sub = rospy.Subscriber('recognizer/object_positions', TennisBallPoses, self.save_ball_poses_cb)
-        self.ordered_pub = rospy.Publisher('/ordered_balls', TennisBallPoses, queue_size=1)
+        self.ordered_pickup_pub = rospy.Publisher('/ordered_pickup', TennisBallPoses, queue_size=1)
+        self.ordered_ball_pub = rospy.Publisher('/ordered_ball', TennisBallPoses, queue_size=1)
         self.unordered_pub = rospy.Publisher('/unordered_balls', TennisBallPoses, queue_size=1)
-        self.robot_pose_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.save_robot_pose_cb)
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
         # self.goal_pub = rospy.Publisher("/move_base_simple/goal", PoseStamped)
-        self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+        # self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
 
-    def goto_first_pose(self):     
-        print "Going to first pose"
-        pose = self.ordered_poses[0]
-        pose.orientation = quaternion_between(self.robot_point, pose.position)
-        print pose
 
-        poseStamped = PoseStamped()
-        poseStamped.header.frame_id = "map"
-        poseStamped.pose = pose
-        print "pose:", pose
-
-        goal = MoveBaseGoal()
-        goal.target_pose = poseStamped
-
-        print "robot point:", self.robot_point
-
-        self.move_base_client.send_goal(goal)
-        print self.move_base_client.wait_for_result(rospy.Duration(20.0))
-
-        object_poseStamped = copy.deepcopy(poseStamped)
-        object_poseStamped.pose.position = self.ordered_object_points[0]
-
-        self.listener.waitForTransform('/base_link', '/map', rospy.Time(), rospy.Duration(4.0))
-        base_link_pose = self.listener.transformPose('/base_link', object_poseStamped).pose
-        self.grabber.move(base_link_pose)
-        # print "base_link_pose:", base_link_pose
 
     
     # def init_header(self):
@@ -103,16 +78,24 @@ class Planner:
         distances = [self.dist(p, self.robot_point) for p in points]
         sorted_idx = np.argsort(distances)
         self.ordered_object_points = [points[i] for i in sorted_idx]
-        self.ordered_poses = [self.get_real_pose(p) for p in self.ordered_object_points]
+        self.ordered_pickup_poses = [self.get_real_pose(p) for p in self.ordered_object_points]
 
-        distances = [self.dist(p.position, self.robot_point) for p in self.ordered_poses]
+        distances = [self.dist(p.position, self.robot_point) for p in self.ordered_pickup_poses]
         print distances
 
-        self.ordered_pub.publish(self.ordered_poses)
+        self.ordered_pickup_pub.publish(self.ordered_pickup_poses)
 
+        ordered_object_poses = []
+        for pt in self.ordered_object_points:
+            p = Pose()
+            p.position = pt
+            p.orientation.w = 1
+            ordered_object_poses.append(p)
+        self.ordered_ball_pub.publish(ordered_object_poses)
+        
         # Visualize
         i = 100003
-        for pose in self.ordered_poses:
+        for pose in self.ordered_pickup_poses:
             object_marker = Marker()
             object_marker.ns = "objects"
             object_marker.id = i
@@ -128,7 +111,7 @@ class Planner:
             self.marker_pub.publish(object_marker)
             i += 1
 
-        return self.ordered_poses
+        return {"pickup_poses": self.ordered_pickup_poses, "object_poses": ordered_object_poses}
     
     def get_real_pose(self, ball_point):
         # (Planner, Point) -> Pose
@@ -162,9 +145,9 @@ class Planner:
                 valid_old_points.append(p)
         self.all_points = valid_old_points + new_points
 
-    def save_robot_pose_cb(self, robot_pose_msg):
-        # (Planner, PoseWithCovarianceStamped) -> None
-        self.robot_point = robot_pose_msg.pose.pose.position
+    # def save_robot_pose_cb(self, robot_pose_msg):
+    #     # (Planner, PoseWithCovarianceStamped) -> None
+    #     self.robot_point = robot_pose_msg.pose.pose.position
     
     def dist(self, x, y):
         # (Planner, Point, Point) -> double

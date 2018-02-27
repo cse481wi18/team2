@@ -1,0 +1,6 @@
+{
+  "name": "robot_controller",
+  "short_name": "robot_controller",
+  "start_url": "/",
+  "display": "standalone"
+}

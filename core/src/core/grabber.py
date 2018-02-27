@@ -29,12 +29,29 @@ def move_pose(p, x, y, z):
     return p
 
 class Grabber:
-    def __init__(self):
+    def __init__(self, planner):
         self._arm = fetch_api.Arm()
+        self.head = fetch_api.Head()
         self._gripper = fetch_api.Gripper()
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
+        self.object_pose_sub = rospy.Subscriber('recognizer/object_positions', TennisBallPoses, self.save_ball_poses_cb)
+        self.listener = TransformListener(rospy.Duration(10))
+        self.planner = planner
+
+
+    # def save_ball_poses_cb(self, msg):
+    #     # (Planner, TennisBallPoses) -> None
+    #     if len(msg.poses) > 0:
+    #         header_frame_id = msg.poses[0].header.frame_id
+    #         self.listener.waitForTransform('/map', header_frame_id, rospy.Time(), rospy.Duration(4.0))
+
+    #     new_points = map(lambda p: self.listener.transformPose("map", p).pose.position, msg.poses)
+    #     self.all_points = new_points
 
     def move(self, pose):
+        self.head.look_at("map", pose.position.x, pose.position.y, pose.position.z)
+        res = self.planner.get_pose()
+        pose = res["object_poses"][0]
         pos_pre = to_pose_stamped(self.get_pose_pre(pose))
         pos_grasp = to_pose_stamped(self.get_pose_grasp(pose))
         pos_lift = to_pose_stamped(self.get_pose_lift(pose))
