@@ -1,9 +1,11 @@
 import rospy
 import numpy as np
 import math
+import tf.transformations as tft
+
 from tf import TransformListener
 from perception_msgs.msg import TennisBallPoses
-from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, PoseStamped, Point
+from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, PoseStamped, Point, Quaternion
 from visualization_msgs.msg import Marker
 
 def is_too_close(p1, p2): 
@@ -11,6 +13,21 @@ def is_too_close(p1, p2):
     difference = np.array([p1.x - p2.x, p1.y - p2.y, p1.z - p2.z])
     dist = np.sqrt(difference.dot(difference))
     return dist < 0.001
+
+def quaternion_between(p1, p2):
+    # (Point, Point) -> Quaternion
+    angle = math.atan2(p2.y - p1.y, p2.x - p1.x)
+    arr = tft.quaternion_from_euler(0, 0, angle)
+    return ndarray_to_quaternion(arr)
+
+def ndarray_to_quaternion(arr):
+    print "ndarray:", arr
+    q = Quaternion()
+    q.x = arr[0]
+    q.y = arr[1]
+    q.z = arr[2]
+    q.w = arr[3]
+    return q
 
 class Planner:
     def __init__(self):
@@ -34,11 +51,16 @@ class Planner:
         print "Going to first pose"
         pose = self.ordered_poses[0]
         print pose
-        pose.orientation.w = 1
+        pose.orientation = quaternion_between(self.robot_point, pose.position)
+        # pose.orientation.w = 1
 
         poseStamped = PoseStamped()
         poseStamped.header.frame_id = "map"
         poseStamped.pose = pose
+        print "pose:", pose
+
+        print "robot point:", self.robot_point
+
         self.goal_pub.publish(poseStamped)
     
     # def init_header(self):
