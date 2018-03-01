@@ -18,31 +18,17 @@ def is_too_close(p1, p2):
     dist = np.sqrt(difference.dot(difference))
     return dist < 0.001
 
-def quaternion_between(p1, p2):
-    # (Point, Point) -> Quaternion
-    angle = math.atan2(p2.y - p1.y, p2.x - p1.x)
-    arr = tft.quaternion_from_euler(0, 0, angle)
-    return ndarray_to_quaternion(arr)
-
-def ndarray_to_quaternion(arr):
-    print "ndarray:", arr
-    q = Quaternion()
-    q.x = arr[0]
-    q.y = arr[1]
-    q.z = arr[2]
-    q.w = arr[3]
-    return q
-
 class Planner:
     def __init__(self):
         # self.header_frame_id = None
         # self.header_init = False
-        self.grabber = core.Grabber()
+        # self.grabber = core.Grabber()
 
         self.listener = TransformListener(rospy.Duration(10))
 
          # Point
         #self.last_poses = []
+        self.robot_point = None # Point
         self.all_points = [] # [Point]
         self.ordered_object_points = [] # [Point]
         self.ordered_pickup_poses = [] #
@@ -52,24 +38,13 @@ class Planner:
         self.ordered_ball_pub = rospy.Publisher('/ordered_ball', TennisBallPoses, queue_size=1)
         self.unordered_pub = rospy.Publisher('/unordered_balls', TennisBallPoses, queue_size=1)
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
+        self.robot_pose_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.save_robot_pose_cb)
+        
         # self.goal_pub = rospy.Publisher("/move_base_simple/goal", PoseStamped)
         # self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
 
-
-
-    
-    # def init_header(self):
-    #     if self.header_frame_id is not None:
-    #         self.listener.waitForTransform('/map', self.header_frame_id, rospy.Time(), rospy.Duration(4.0))
-    #         self.header_init = True
-    
     def get_pose(self):
         # (Planner) -> [?]
-        # while (self.header_frame_id is None)
-        # if self.header_init is False:
-        #     self.init_header()
-        #     if self.header_init is False:
-        #         return []
 
         print "", self.robot_point
         while self.all_points is [] or self.robot_point is None:
@@ -145,9 +120,10 @@ class Planner:
                 valid_old_points.append(p)
         self.all_points = valid_old_points + new_points
 
-    # def save_robot_pose_cb(self, robot_pose_msg):
-    #     # (Planner, PoseWithCovarianceStamped) -> None
-    #     self.robot_point = robot_pose_msg.pose.pose.position
+    def save_robot_pose_cb(self, robot_pose_msg):
+        # (Planner, PoseWithCovarianceStamped) -> None
+        self.robot_point = robot_pose_msg.pose.pose.position
+        print "Planner: robot pose received, HAHAHAA"
     
     def dist(self, x, y):
         # (Planner, Point, Point) -> double

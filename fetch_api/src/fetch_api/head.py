@@ -42,8 +42,8 @@ class Head(object):
     MAX_TILT = math.pi / 4  # TODO: Maximum tilt angle, in radians.
 
     def __init__(self):
-        self.traj_client = actionlib.SimpleActionClient(PAN_TILT_ACTION_NAME, control_msgs.msg.FollowJointTrajectoryAction)
-        self.point_client = actionlib.SimpleActionClient(LOOK_AT_ACTION_NAME, control_msgs.msg.PointHeadAction)
+        self.traj_client = actionlib.SimpleActionClient(PAN_TILT_ACTION_NAME, FollowJointTrajectoryAction)
+        self.point_client = actionlib.SimpleActionClient(LOOK_AT_ACTION_NAME, PointHeadAction)
         while not self.traj_client.wait_for_server(timeout=rospy.Duration(1)):
             rospy.logwarn('Waiting for head trajectory server...')
         while not self.point_client.wait_for_server(timeout=rospy.Duration(1)):
@@ -66,8 +66,8 @@ class Head(object):
         goal.target.point = Point(x, y, z)
         goal.target.header.frame_id = frame_id
 
-        self.lookClient.send_goal(goal)
-        self.lookClient.wait_for_result(rospy.Duration.from_sec(5.0))
+        self.point_client.send_goal(goal)
+        self.point_client.wait_for_result(rospy.Duration.from_sec(5.0))
 
     def pan_tilt(self, pan, tilt):
         """Moves the head by setting pan/tilt angles.
@@ -104,5 +104,5 @@ class Head(object):
 
         # TODO: Send the goal
         # TODO: Wait for result
-        self.panTiltClient.send_goal(goal)
-        self.panTiltClient.wait_for_result(rospy.Duration.from_sec(5.0))
+        self.traj_client.send_goal(goal)
+        self.traj_client.wait_for_result(rospy.Duration.from_sec(5.0))

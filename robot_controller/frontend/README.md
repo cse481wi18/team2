@@ -1,4 +1,4 @@
-# \<robot_controller\>
+# \<robot-controller\>
 
 
 

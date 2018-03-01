@@ -4,8 +4,9 @@ import copy
 import numpy as np
 import tf.transformations as tft
 from tf import TransformListener
-from geometry_msgs.msg import Pose, PoseStamped
+from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, PoseStamped
 from visualization_msgs.msg import Marker
+from perception_msgs.msg import TennisBallPoses
 
 def to_pose_stamped(pose):
     pose_stamped = PoseStamped()
@@ -34,10 +35,9 @@ class Grabber:
         self.head = fetch_api.Head()
         self._gripper = fetch_api.Gripper()
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
-        self.object_pose_sub = rospy.Subscriber('recognizer/object_positions', TennisBallPoses, self.save_ball_poses_cb)
+        # self.object_pose_sub = rospy.Subscriber('recognizer/object_positions', TennisBallPoses, self.save_ball_poses_cb)
         self.listener = TransformListener(rospy.Duration(10))
         self.planner = planner
-
 
     # def save_ball_poses_cb(self, msg):
     #     # (Planner, TennisBallPoses) -> None
@@ -49,23 +49,37 @@ class Grabber:
     #     self.all_points = new_points
 
     def move(self, pose):
-        self.head.look_at("map", pose.position.x, pose.position.y, pose.position.z)
+        # (Planner, Pose) -> bool
+        print "Planned pose:", pose
+        self.head.look_at("base_link", pose.position.x, pose.position.y, pose.position.z)
+        rospy.sleep(1)
+        print "Finished looking at ball"
         res = self.planner.get_pose()
         pose = res["object_poses"][0]
-        pos_pre = to_pose_stamped(self.get_pose_pre(pose))
-        pos_grasp = to_pose_stamped(self.get_pose_grasp(pose))
-        pos_lift = to_pose_stamped(self.get_pose_lift(pose))
-        pos_unload = to_pose_stamped(self.get_pose_unload(pose))
+        print "Adjusted pose:", pose
+
+        # Change frame
+        object_poseStamped = PoseStamped()
+        object_poseStamped.header.frame_id = "map"
+        object_poseStamped.pose = pose
+        listener = TransformListener()
+        listener.waitForTransform('/base_link', '/map', rospy.Time(), rospy.Duration(4.0))
+        base_link_pose = listener.transformPose('/base_link', object_poseStamped).pose
+
+        pos_pre = to_pose_stamped(self.get_pose_pre(base_link_pose))
+        pos_grasp = to_pose_stamped(self.get_pose_grasp(base_link_pose))
+        pos_lift = to_pose_stamped(self.get_pose_lift(base_link_pose))
+        pos_unload = to_pose_stamped(self.get_pose_unload(base_link_pose))
 
         # Visualize
         i = 12000
-        for pose in [pos_pre, pos_grasp, pos_lift, pos_unload]:
+        for ps in [pos_pre, pos_grasp, pos_lift, pos_unload]:
             object_marker = Marker()
             object_marker.ns = "objects"
             object_marker.id = i
             object_marker.header.frame_id = "base_link"
             object_marker.type = Marker.CUBE
-            object_marker.pose = pose.pose
+            object_marker.pose = ps.pose
             object_marker.scale.x = 0.2
             object_marker.scale.y = 0.05
             object_marker.scale.z = 0.05
@@ -129,7 +143,7 @@ class Grabber:
 
     def get_pose_pre(self, pose):
         p = copy.deepcopy(pose)
-        p = forward(p, 0.02)
+        # p = forward(p, 0.20)
         p.orientation.x = 0.0
         p.orientation.y = 1.0
         p.orientation.z = 0.0
@@ -138,12 +152,12 @@ class Grabber:
 
     def get_pose_grasp(self, pose):
         p = copy.deepcopy(pose)
-        p = forward(p, 0.02)
+        # p = forward(p, 0.20)
         p.orientation.x = 0.0
         p.orientation.y = 1.0
         p.orientation.z = 0.0
         p.orientation.w = 1.0
-        return forward(p, -0.19)
+        return forward(p, -0.25)
 
     def get_pose_lift(self, pose):
         return self.get_pose_pre(pose)
