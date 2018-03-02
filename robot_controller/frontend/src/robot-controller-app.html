@@ -1,4 +1,5 @@
-<link rel="import" href="../../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../bower_components/ros-websocket/ros-websocket.html">
 
 <dom-module id="robot-controller-app">
   <template>
@@ -8,6 +9,14 @@
       }
     </style>
     <h2>Hello [[prop1]]!</h2>
+  <ros-websocket auto ros="{{ros}}"
+    url="{{url}}"
+    on-connection="_handleConnection"
+    on-close="_handleClose"
+    on-error="_handleError">
+  </ros-websocket>
+
+  <h1>Fetch teleop</h1>
   </template>
 
   <script>

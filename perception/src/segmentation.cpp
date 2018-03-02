@@ -32,13 +32,45 @@
 #include <math.h>
 #include <sstream>
 #include <string>
+#include <locale>
 
 typedef pcl::PointXYZRGB PointC;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudC;
 
 namespace perception {
 
+  bool FitSphere(PointCloudC::Ptr cloud, pcl::ModelCoefficients::Ptr coeff_out) {
+    ros::NodeHandle nh;
+    ros::Publisher marker_pub =
+        nh.advertise<visualization_msgs::Marker>("visualization_marker2", 1, true);
 
+    std::cout << "Fitting cloud with " << cloud->points.size() << " indices" << std::endl;
+    ROS_INFO("Polpulating new point cloud");
+
+    pcl::SACSegmentation<pcl::PointXYZRGB> segmentation;
+    segmentation.setInputCloud(cloud);
+    segmentation.setModelType(pcl::SACMODEL_SPHERE);
+    segmentation.setMethodType(pcl::SAC_RANSAC);
+    segmentation.setDistanceThreshold(1); 
+    segmentation.setOptimizeCoefficients(true);
+    segmentation.setRadiusLimits(0.001, 0.04);
+    segmentation.setMaxIterations(1000);
+    segmentation.setProbability(0.99);
+    segmentation.setEpsAngle(90.0f * (3.14159265/180.0f));
+
+    pcl::PointIndices inlierIndices;
+    segmentation.segment(inlierIndices, *coeff_out);
+
+    if (inlierIndices.indices.size() == 0) {
+      // ROS_INFO("RANSAC nothing found");
+      return false;
+    } else {
+      ROS_INFO("RANSAC found shape with [%d] points", (int)inlierIndices.indices.size());
+      for (int c = 0; c < coeff_out->values.size(); ++c)
+          ROS_INFO("Coeff %d = [%f]", (int)c+1, (float)coeff_out->values[c]);
+      return true;
+    }
+  }
 
   void SegmentTopScene(PointCloudC::Ptr above_cloud,
                             std::vector<Object>* objects) {
@@ -60,14 +92,11 @@ namespace perception {
       *indices = object_indices[i];
       PointCloudC::Ptr object_cloud(new PointCloudC());
       // TODO: fill in object_cloud using indices
-      pcl::ExtractIndices<PointC> extract2; 
+      pcl::ExtractIndices<PointC> extract2;
       extract2.setInputCloud(above_cloud);
       extract2.setIndices(indices);
       extract2.filter(*object_cloud);
 
-      PointCloudC::Ptr extract_out2(new PointCloudC());
-      shape_msgs::SolidPrimitive shape2;
-      geometry_msgs::Pose table_pose2;
 
       pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients());
       double table_coeff_0;
@@ -83,17 +112,37 @@ namespace perception {
       coeff->values.push_back(table_coeff_2);
       coeff->values.push_back(table_coeff_3);
       
-      FitBox(*object_cloud, coeff, *extract_out2, shape2, table_pose2);
+      pcl::ModelCoefficients::Ptr sphereCoeff(new pcl::ModelCoefficients());
+      if (FitSphere(object_cloud, sphereCoeff)) {
+        Object obj = Object();
+        obj.name = "some sphere object";
+        // obj.confidence = ???;
+        obj.cloud = object_cloud;
+        obj.radius = sphereCoeff->values[3];
+        obj.dimensions.x = sphereCoeff->values[3];
+        obj.dimensions.y = sphereCoeff->values[3];
+        obj.dimensions.z = sphereCoeff->values[3];
+        obj.pose.position.x = sphereCoeff->values[0];
+        obj.pose.position.y = sphereCoeff->values[1];
+        obj.pose.position.z = sphereCoeff->values[2];
+        objects->push_back(obj);
+      } else {
+        shape_msgs::SolidPrimitive shape2;
+        PointCloudC::Ptr extract_out2(new PointCloudC());
+        geometry_msgs::Pose table_pose2;
+        FitBox(*object_cloud, coeff, *extract_out2, shape2, table_pose2);
 
-      Object obj = Object();
-      obj.name = "some object";
-      // obj.confidence = ???;
-      obj.cloud = object_cloud;
-      obj.pose = table_pose2;
-      obj.dimensions.x = shape2.dimensions[0];
-      obj.dimensions.y = shape2.dimensions[1];
-      obj.dimensions.z = shape2.dimensions[2];
-      objects->push_back(obj);
+        Object obj = Object();
+        obj.name = "some non-sphere object";
+        // obj.confidence = ???;
+        obj.cloud = object_cloud;
+        obj.radius = -1;
+        obj.pose = table_pose2;
+        obj.dimensions.x = shape2.dimensions[0];
+        obj.dimensions.y = shape2.dimensions[1];
+        obj.dimensions.z = shape2.dimensions[2];
+        objects->push_back(obj);
+      }
     }
   }
 
@@ -306,61 +355,120 @@ namespace perception {
       double recognize_threshold;
       ros::param::param("recognize_threshold", recognize_threshold, 1000.0);
 
-      if (confidence < recognize_threshold) {
+      // Publish qualified objects
+      if (object.radius > 0) {
+        // Transform to map frame
         geometry_msgs::PoseStamped stamped_pose;
         stamped_pose.pose = object.pose;
         stamped_pose.header.frame_id = msg.header.frame_id;
-        // stamped_pose.header.stamp = ros::Time::now();
         tennis_ball_poses2.poses.push_back(stamped_pose);
       }
-      // TODO: transform to map frame!!!
       ball_poses_pub_.publish(tennis_ball_poses2);
       
-      // Publish a bounding box around it.
-      visualization_msgs::Marker object_marker;
-      object_marker.ns = "objects";
-      object_marker.id = i;
-      object_marker.header.frame_id = msg.header.frame_id;
-      object_marker.type = visualization_msgs::Marker::CUBE;
-      object_marker.pose = object.pose;
-      object_marker.scale = object.dimensions;
-      object_marker.color.g = 1;
-      object_marker.color.a = 0.3;
-      if (confidence < recognize_threshold) {
+      if (object.radius > 0) {
+        // Publish a sphere around it.
+        visualization_msgs::Marker object_marker;
+        object_marker.ns = "objects";
+        object_marker.id = i;
+        object_marker.header.frame_id = msg.header.frame_id;
+        object_marker.type = visualization_msgs::Marker::SPHERE;
+        object_marker.pose = object.pose;
+        object_marker.scale.x = object.dimensions.x * 2;
+        object_marker.scale.y = object.dimensions.y * 2;
+        object_marker.scale.z = object.dimensions.z * 2;
+        object_marker.color.g = 1;
+        object_marker.color.a = 0.3;
         object_marker.color.b = 1;
-      }
 
-      marker_pub_.publish(object_marker);
+        marker_pub_.publish(object_marker);
 
+        std::stringstream ss;
+        ss << name << " (" << confidence << ")";
 
-      std::stringstream ss;
-      ss << name << " (" << confidence << ")";
+        // Publish the recognition result.
+        visualization_msgs::Marker name_marker;
+        name_marker.ns = "recognition";
+        name_marker.id = i;
+        name_marker.header.frame_id = msg.header.frame_id;
+        name_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+        name_marker.pose.position = object.pose.position;
+        name_marker.pose.position.z += 0.1;
+        name_marker.pose.orientation.w = 1;
+        name_marker.scale.x = 0.025;
+        name_marker.scale.y = 0.025;
+        name_marker.scale.z = 0.025;
+        name_marker.color.r = 0;
+        name_marker.color.g = 0;
+        name_marker.color.b = 1.0;
+        name_marker.color.a = 1.0;
+        std::ostringstream convert;   // stream used for the conversion
+        convert << object.dimensions.x;      // insert the textual representation of 'Number' in the characters in the stream
+        name_marker.text = "r = " + convert.str();
 
-      // Publish the recognition result.
-      visualization_msgs::Marker name_marker;
-      name_marker.ns = "recognition";
-      name_marker.id = i;
-      name_marker.header.frame_id = msg.header.frame_id;
-      name_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
-      name_marker.pose.position = object.pose.position;
-      name_marker.pose.position.z += 0.1;
-      name_marker.pose.orientation.w = 1;
-      name_marker.scale.x = 0.025;
-      name_marker.scale.y = 0.025;
-      name_marker.scale.z = 0.025;
-      name_marker.color.r = 0;
-      name_marker.color.g = 0;
-      name_marker.color.b = 1.0;
-      name_marker.color.a = 1.0;
-      name_marker.text = ss.str();
+        marker_pub_.publish(name_marker);
+      } else if (confidence < recognize_threshold) {
+        // Publish a bounding box around it.
+        visualization_msgs::Marker object_marker;
+        object_marker.ns = "objects";
+        object_marker.id = i;
+        object_marker.header.frame_id = msg.header.frame_id;
+        object_marker.type = visualization_msgs::Marker::CUBE;
+        object_marker.pose = object.pose;
+        object_marker.scale.x = object.dimensions.x;
+        object_marker.scale.y = object.dimensions.y;
+        object_marker.scale.z = object.dimensions.z;
+        object_marker.color.g = 1;
+        object_marker.color.a = 0.3;
+        object_marker.color.b = 1;
 
-      marker_pub_.publish(name_marker);
+        marker_pub_.publish(object_marker);
+
+        std::stringstream ss;
+        ss << name << " (" << confidence << ")";
+
+        // // Publish the recognition result.
+        // visualization_msgs::Marker name_marker;
+        // name_marker.ns = "recognition";
+        // name_marker.id = i;
+        // name_marker.header.frame_id = msg.header.frame_id;
+        // name_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+        // name_marker.pose.position = object.pose.position;
+        // name_marker.pose.position.z += 0.1;
+        // name_marker.pose.orientation.w = 1;
+        // name_marker.scale.x = 0.025;
+        // name_marker.scale.y = 0.025;
+        // name_marker.scale.z = 0.025;
+        // name_marker.color.r = 0;
+        // name_marker.color.g = 0;
+        // name_marker.color.b = 1.0;
+        // name_marker.color.a = 1.0;
+        // name_marker.text = ss.str();
+
+        // marker_pub_.publish(name_marker);
+      } else {
+        // Publish an insignificant bounding box around it.
+        visualization_msgs::Marker object_marker;
+        object_marker.ns = "objects";
+        object_marker.id = i;
+        object_marker.header.frame_id = msg.header.frame_id;
+        object_marker.type = visualization_msgs::Marker::CUBE;
+        object_marker.pose = object.pose;
+        object_marker.scale.x = object.dimensions.x;
+        object_marker.scale.y = object.dimensions.y;
+        object_marker.scale.z = object.dimensions.z;
+        object_marker.color.r = 0.3;
+        object_marker.color.g = 0.3;
+        object_marker.color.b = 0.3;
+        object_marker.color.a = 0.2;
+
+        marker_pub_.publish(object_marker);
     }
 
     // for (std::vector<geometry_msgs::Pose>::const_iterator i = tennis_ball_poses2.poses.begin(); i != tennis_ball_poses2.poses.end(); ++i)
     //   std::cout << *i;
   }
-} // namespace perception
+} 
+}// namespace perception
 
 // TABLE MARKER PUBLISHER
 //   // Publish table marker
