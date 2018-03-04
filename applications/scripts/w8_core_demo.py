@@ -18,27 +18,26 @@ def main():
   planner = core.Planner()
   mover = core.Mover()
   grabber = core.Grabber(planner)
-  rospy.sleep(1)
-  #   all_poses.extend(return_poses)
-  # while return_poses is None:
-  #   return_poses = plan.get_pose()
-  #   all_poses.extend(return_poses)
-  res = planner.get_pose()
-  print "Planner returns", res
-  all_pick_up_poses = res["pickup_poses"]
-  all_object_poses = res["object_poses"]
-  print(all_poses)
+  while True:
+    rospy.sleep(3)
+    #   all_poses.extend(return_poses)
+    # while return_poses is None:
+    #   return_poses = plan.get_pose()
+    #   all_poses.extend(return_poses)
+    res = planner.get_pose()
+    # print "Planner returns", res
+    all_pick_up_poses = res["pickup_poses"]
+    all_object_poses = res["object_poses"]
 
-  poseStamped = mover.goto_pose(all_pick_up_poses[0])
-  object_poseStamped = PoseStamped()
-  object_poseStamped.header.frame_id = "map"
-  object_poseStamped.pose = all_object_poses[0]
+    poseStamped = mover.goto_pose(all_pick_up_poses[0])
+    object_poseStamped = PoseStamped()
+    object_poseStamped.header.frame_id = "map"
+    object_poseStamped.pose = all_object_poses[0]
 
-  listener = TransformListener()
-  listener.waitForTransform('/base_link', '/map', rospy.Time(), rospy.Duration(4.0))
-  base_link_pose = listener.transformPose('/base_link', object_poseStamped).pose
-  grabber.move(base_link_pose)
-
+    listener = TransformListener()
+    listener.waitForTransform('/base_link', '/map', rospy.Time(), rospy.Duration(4.0))
+    base_link_pose = listener.transformPose('/base_link', object_poseStamped).pose
+    grabber.move(base_link_pose)
   # pose = Pose()
 
   # pose.position.x = 0.83608096838

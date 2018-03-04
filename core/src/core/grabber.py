@@ -50,13 +50,14 @@ class Grabber:
 
     def move(self, pose):
         # (Planner, Pose) -> bool
-        print "Planned pose:", pose
+        # print "Planned pose:", pose
         self.head.look_at("base_link", pose.position.x, pose.position.y, pose.position.z)
-        rospy.sleep(1)
+        # self.planner.all_points = []
+        rospy.sleep(2)
         print "Finished looking at ball"
         res = self.planner.get_pose()
         pose = res["object_poses"][0]
-        print "Adjusted pose:", pose
+        # print "Adjusted pose:", pose
 
         # Change frame
         object_poseStamped = PoseStamped()
@@ -86,57 +87,58 @@ class Grabber:
             object_marker.color.r = 0.3 + 0.2 * i
             object_marker.color.g = 0
             object_marker.color.b = 0.3 + 0.2 * i
-            object_marker.color.a = 0.3 + 0.2 * i
+            object_marker.color.a = 0.5
             self.marker_pub.publish(object_marker)
             i += 1
-        
-        self._gripper.open()
 
-        if self.check_pose(pos_pre) is True:
-            err = self._arm.move_to_pose(pos_pre)
-            if err is None:
-                print "move to pre-grasp-pose"
+        if self.check_pose(pos_pre) and self.check_pose(pos_grasp) and self.check_pose(pos_lift):
+            self._gripper.open()
+
+            if self.check_pose(pos_pre) is True:
+                err = self._arm.move_to_pose(pos_pre)
+                if err is None:
+                    print "move to pre-grasp-pose"
+                else:
+                    print "Failed to reach pre-grasp-pose"
             else:
-                print "Failed to reach pre-grasp-pose"
-        else:
-            print "Can't reach pre-grasp-pose"
+                print "Can't reach pre-grasp-pose"
 
-        rospy.sleep(1)
-        
-        if self.check_pose(pos_grasp) is True:
-            err = self._arm.move_to_pose(pos_grasp)
-            if err is None:
-                print "move to grasp-pose"
+            rospy.sleep(0.1)
+            
+            if self.check_pose(pos_grasp) is True:
+                err = self._arm.move_to_pose(pos_grasp)
+                if err is None:
+                    print "move to grasp-pose"
+                else:
+                    print "Failed to reach grasp-pose"
             else:
-                print "Failed to reach grasp-pose"
-        else:
-            print "Can't reach grasp-pose"
+                print "Can't reach grasp-pose"
 
-        rospy.sleep(1)
-        self._gripper.close()
+            rospy.sleep(0.1)
+            self._gripper.close()
 
-        rospy.sleep(1)
-        if self.check_pose(pos_lift) is True:
-            err = self._arm.move_to_pose(pos_lift)
-            if err is None:
-                print "move to lift-pose"
+            rospy.sleep(0.1)
+            if self.check_pose(pos_lift) is True:
+                err = self._arm.move_to_pose(pos_lift)
+                if err is None:
+                    print "move to lift-pose"
+                else:
+                    print "Failed to reach lift-pose"
             else:
-                print "Failed to reach lift-pose"
-        else:
-            print "Can't reach lift-pose"
+                print "Can't reach lift-pose"
 
-        rospy.sleep(1)
-        if self.check_pose(pos_unload) is True:
-            err = self._arm.move_to_pose(pos_unload)
-            if err is None:
-                print "move to unload-pose"
-                pass
+            rospy.sleep(0.1)
+            if self.check_pose(pos_unload) is True:
+                err = self._arm.move_to_pose(pos_unload)
+                if err is None:
+                    print "move to unload-pose"
+                    pass
+                else:
+                    print "Failed to reach unload-pose"
             else:
-                print "Failed to reach unload-pose"
-        else:
-            print "Can't reach unload-pose"
-        self._gripper.open()
-        return True
+                print "Can't reach unload-pose"
+            self._gripper.open()
+            return True
 
     def check_pose(self, pose_stamped):
         return self._arm.compute_ik(pose_stamped)
@@ -148,7 +150,7 @@ class Grabber:
         p.orientation.y = 1.0
         p.orientation.z = 0.0
         p.orientation.w = 1.0
-        return forward(p, -0.4)
+        return forward(p, -0.24)
 
     def get_pose_grasp(self, pose):
         p = copy.deepcopy(pose)
@@ -157,7 +159,7 @@ class Grabber:
         p.orientation.y = 1.0
         p.orientation.z = 0.0
         p.orientation.w = 1.0
-        return forward(p, -0.25)
+        return forward(p, -0.09)
 
     def get_pose_lift(self, pose):
         return self.get_pose_pre(pose)

@@ -4,6 +4,7 @@ import math
 import tf.transformations as tft
 from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, PoseStamped, Point, Quaternion
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+from visualization_msgs.msg import Marker
 
 def quaternion_between(p1, p2):
     # (Point, Point) -> Quaternion
@@ -12,7 +13,6 @@ def quaternion_between(p1, p2):
     return ndarray_to_quaternion(arr)
 
 def ndarray_to_quaternion(arr):
-    print "ndarray:", arr
     q = Quaternion()
     q.x = arr[0]
     q.y = arr[1]
@@ -25,6 +25,7 @@ class Mover:
         self.robot_point = None # Point
         self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         self.robot_pose_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.save_robot_pose_cb)
+        self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
 
     def save_robot_pose_cb(self, robot_pose_msg):
         # (Planner, PoseWithCovarianceStamped) -> None
@@ -45,24 +46,33 @@ class Mover:
 
     def goto_pose(self, pose):     
         while self.robot_point is None:
-            print "lol wtf"
-            print self.robot_point
             print "Mover: robot pose not received, sleeping"
             rospy.sleep(1)
 
         print "Going to first pose"
         pose.orientation = quaternion_between(self.robot_point, pose.position)
-        print pose
 
         poseStamped = PoseStamped()
         poseStamped.header.frame_id = "map"
         poseStamped.pose = pose
-        print "pose:", pose
 
         goal = MoveBaseGoal()
         goal.target_pose = poseStamped
 
-        print "robot point:", self.robot_point
+        object_marker = Marker()
+        object_marker.ns = "objects"
+        object_marker.id = 83456213
+        object_marker.header.frame_id = "map"
+        object_marker.type = Marker.SPHERE
+        object_marker.pose = pose
+        object_marker.scale.x = 0.3
+        object_marker.scale.y = 0.3
+        object_marker.scale.z = 0.05
+        object_marker.color.r = 1
+        object_marker.color.g = 1
+        object_marker.color.b = 0
+        object_marker.color.a = 0.3
+        self.marker_pub.publish(object_marker)
 
         self.move_base_client.send_goal(goal)
         print self.move_base_client.wait_for_result(rospy.Duration(20.0))
