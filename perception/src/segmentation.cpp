@@ -355,12 +355,14 @@ namespace perception {
       double recognize_threshold;
       ros::param::param("recognize_threshold", recognize_threshold, 1000.0);
 
+      // ros::Time timestamp = ros::Time::now();
       // Publish qualified objects
       if (object.radius > 0) {
         // Transform to map frame
         geometry_msgs::PoseStamped stamped_pose;
         stamped_pose.pose = object.pose;
         stamped_pose.header.frame_id = msg.header.frame_id;
+        // stamped_pose.header.stamp = timestamp;
         tennis_ball_poses2.poses.push_back(stamped_pose);
       }
       ball_poses_pub_.publish(tennis_ball_poses2);

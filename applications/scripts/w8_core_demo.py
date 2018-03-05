@@ -19,25 +19,44 @@ def main():
   mover = core.Mover()
   grabber = core.Grabber(planner)
   while True:
-    rospy.sleep(3)
+    planner.confidence_drop_rate = 0.90
+    planner.unpause()
+    rospy.sleep(2)
+    planner.pause()
     #   all_poses.extend(return_poses)
     # while return_poses is None:
     #   return_poses = plan.get_pose()
     #   all_poses.extend(return_poses)
-    res = planner.get_pose()
+    print "Core: Getting pose from planner"
+    all_object_poses = planner.get_pose()
+    first_pose = all_object_poses[0]
     # print "Planner returns", res
-    all_pick_up_poses = res["pickup_poses"]
-    all_object_poses = res["object_poses"]
+    # poseStamped = mover.goto_pose(all_pick_up_poses[0])
 
-    poseStamped = mover.goto_pose(all_pick_up_poses[0])
+    print "Core: Transforming object pose"
     object_poseStamped = PoseStamped()
     object_poseStamped.header.frame_id = "map"
-    object_poseStamped.pose = all_object_poses[0]
+    object_poseStamped.pose = first_pose
 
     listener = TransformListener()
     listener.waitForTransform('/base_link', '/map', rospy.Time(), rospy.Duration(4.0))
     base_link_pose = listener.transformPose('/base_link', object_poseStamped).pose
-    grabber.move(base_link_pose)
+
+    print "Core: calling graber to grab"
+    grabber_success = grabber.grab(base_link_pose)
+    if grabber_success:
+      planner.reduce_confidence(first_pose)
+    else:
+      print "Core: grabber failed, moving closer"
+      mover.move_to_grab_pose(first_pose)
+
+      listener = TransformListener()
+      listener.waitForTransform('/base_link', '/map', rospy.Time(), rospy.Duration(4.0))
+      base_link_pose2 = listener.transformPose('/base_link', object_poseStamped).pose
+
+      grabber_success2 = grabber.grab(base_link_pose2)
+      print "Core: new grabber result:", grabber_success2
+
   # pose = Pose()
 
   # pose.position.x = 0.83608096838
@@ -46,7 +65,7 @@ def main():
 
   # pose.orientation.w = 1.0
 
-  # grabber.move(pose)
+  # grabber.grab(pose)
   # rospy.spin()
 
 if __name__ == "__main__":

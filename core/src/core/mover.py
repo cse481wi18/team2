@@ -2,6 +2,7 @@ import rospy
 import actionlib
 import math
 import tf.transformations as tft
+import numpy as np
 from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, PoseStamped, Point, Quaternion
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from visualization_msgs.msg import Marker
@@ -20,17 +21,23 @@ def ndarray_to_quaternion(arr):
     q.w = arr[3]
     return q
 
+def dist_between(x, y):
+    # (Planner, Point, Point) -> double
+    dx = (x.x - y.x) ** 2
+    dy = (x.y - y.y) ** 2
+    return np.sqrt(dx + dy)
+
 class Mover:
     def __init__(self):
         self.robot_point = None # Point
         self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         self.robot_pose_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.save_robot_pose_cb)
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
+        self.grab_distance_offset = 0.5 # for future measurement
 
     def save_robot_pose_cb(self, robot_pose_msg):
         # (Planner, PoseWithCovarianceStamped) -> None
         self.robot_point = robot_pose_msg.pose.pose.position
-        print "Mover: robot pose received:", self.robot_point
 
     # def goto_pose(self, pose):
     #     if pose is None:
@@ -44,17 +51,18 @@ class Mover:
 
     #         return self._move_base_client.wait_for_result(rospy.Duration(20.0))
 
-    def goto_pose(self, pose):     
+    def move_to_grab_pose(self, ball_pose):     
         while self.robot_point is None:
-            print "Mover: robot pose not received, sleeping"
+            print "Mover: Robot pose not received, sleeping"
             rospy.sleep(1)
 
-        print "Going to first pose"
-        pose.orientation = quaternion_between(self.robot_point, pose.position)
+        pickup_pose = self.get_pickup_pose(ball_pose.position)
+        print "Mover: Going to first pose"
+        pickup_pose.orientation = quaternion_between(self.robot_point, ball_pose.position)
 
         poseStamped = PoseStamped()
         poseStamped.header.frame_id = "map"
-        poseStamped.pose = pose
+        poseStamped.pose = pickup_pose
 
         goal = MoveBaseGoal()
         goal.target_pose = poseStamped
@@ -64,7 +72,7 @@ class Mover:
         object_marker.id = 83456213
         object_marker.header.frame_id = "map"
         object_marker.type = Marker.SPHERE
-        object_marker.pose = pose
+        object_marker.pose = pickup_pose
         object_marker.scale.x = 0.3
         object_marker.scale.y = 0.3
         object_marker.scale.z = 0.05
@@ -75,7 +83,8 @@ class Mover:
         self.marker_pub.publish(object_marker)
 
         self.move_base_client.send_goal(goal)
-        print self.move_base_client.wait_for_result(rospy.Duration(20.0))
+        res = self.move_base_client.wait_for_result(rospy.Duration(20.0))
+        print "Mover: returns", res
 
         # return poseStamped
         #  = copy.deepcopy(poseStamped)
@@ -85,3 +94,15 @@ class Mover:
         # base_link_pose = self.listener.transformPose('/base_link', object_poseStamped).pose
         # self.grabber.move(base_link_pose)
         # print "base_link_pose:", base_link_pose
+
+
+    def get_pickup_pose(self, ball_point):
+        # (Planner, Point) -> Pose
+        dist = dist_between(self.robot_point, ball_point)
+        rate = self.grab_distance_offset / dist
+        dx = rate * (ball_point.x - self.robot_point.x)
+        dy = rate * (ball_point.y - self.robot_point.y)
+        pose = Pose()
+        pose.position.x = ball_point.x - dx
+        pose.position.y = ball_point.y - dy
+        return pose

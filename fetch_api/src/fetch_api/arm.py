@@ -135,7 +135,7 @@ class Arm(object):
         goal_builder.replan_attempts = replan_attempts
         goal_builder.tolerance = tolerance
         if orientation_constraint is not None:
-            print orientation_constraint
+            # print orientation_constraint
             goal_builder.add_path_orientation_constraint(orientation_constraint)
         goal = goal_builder.build()
 

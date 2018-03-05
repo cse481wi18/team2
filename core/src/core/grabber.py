@@ -48,15 +48,19 @@ class Grabber:
     #     new_points = map(lambda p: self.listener.transformPose("map", p).pose.position, msg.poses)
     #     self.all_points = new_points
 
-    def move(self, pose):
+    def grab(self, pose):
         # (Planner, Pose) -> bool
         # print "Planned pose:", pose
         self.head.look_at("base_link", pose.position.x, pose.position.y, pose.position.z)
         # self.planner.all_points = []
+        self.planner.confidence_drop_rate = 0.80
+        self.planner.unpause()
         rospy.sleep(2)
+        self.planner.pause()
+        
         print "Finished looking at ball"
         res = self.planner.get_pose()
-        pose = res["object_poses"][0]
+        pose = res[0]
         # print "Adjusted pose:", pose
 
         # Change frame
@@ -75,7 +79,7 @@ class Grabber:
 
         # Visualize
         i = 12000
-        for ps in [pos_pre, pos_grasp, pos_lift, pos_pre_unload]:
+        for ps in [pos_pre, pos_grasp, pos_pre_unload, pos_unload]:
             object_marker = Marker()
             object_marker.ns = "objects"
             object_marker.id = i
@@ -92,9 +96,19 @@ class Grabber:
             self.marker_pub.publish(object_marker)
             i += 1
 
-        if self.check_pose(pos_pre) and self.check_pose(pos_grasp) and self.check_pose(pos_lift) and self.check_pose(pos_pre_unload):
-            self._gripper.open()
-
+        if self.check_pose(pos_pre) is False:
+            print "Grabber: can't reach pre-pose"
+            return False
+        elif self.check_pose(pos_grasp) is False:
+            print "Grabber: can't reach grasp-pose"
+            return False
+        elif self.check_pose(pos_pre_unload) is False:
+            print "Grabber: can't reach pre-unload-pose"
+            return False
+        elif self.check_pose(pos_unload) is False:
+            print "Grabber: can't reach unload-pose"
+            return False
+        else:
             if self.check_pose(pos_pre_unload) is True:
                 err = self._arm.move_to_pose(pos_pre_unload)
                 if err is None:
@@ -102,9 +116,12 @@ class Grabber:
                     pass
                 else:
                     print "Failed to reach pre-unload-pose(before grasp)"
+                    return False
             else:
                 print "Can't reach pre-unload-pose(before grasp)"
+                return False
 
+            self._gripper.open()
             rospy.sleep(0.1)
 
             if self.check_pose(pos_pre) is True:
@@ -113,8 +130,10 @@ class Grabber:
                     print "move to pre-grasp-pose"
                 else:
                     print "Failed to reach pre-grasp-pose"
+                    return False
             else:
                 print "Can't reach pre-grasp-pose"
+                return False
 
             rospy.sleep(0.1)
             
@@ -124,8 +143,10 @@ class Grabber:
                     print "move to grasp-pose"
                 else:
                     print "Failed to reach grasp-pose"
+                    return False
             else:
                 print "Can't reach grasp-pose"
+                return False
 
             rospy.sleep(0.1)
             self._gripper.close()
@@ -137,8 +158,10 @@ class Grabber:
                     print "move to lift-pose"
                 else:
                     print "Failed to reach lift-pose"
+                    return False
             else:
                 print "Can't reach lift-pose"
+                return False
 
             rospy.sleep(0.1)
             if self.check_pose(pos_pre_unload) is True:
@@ -148,8 +171,10 @@ class Grabber:
                     pass
                 else:
                     print "Failed to reach pre-unload-pose"
+                    return False
             else:
                 print "Can't reach pre-unload-pose"
+                return False
 
             rospy.sleep(0.1)
             if self.check_pose(pos_unload) is True:
@@ -159,8 +184,10 @@ class Grabber:
                     pass
                 else:
                     print "Failed to reach unload-pose"
+                    return False
             else:
                 print "Can't reach unload-pose"
+                return False
             self._gripper.open()
             return True
 
@@ -174,7 +201,7 @@ class Grabber:
         p.orientation.y = 1.0
         p.orientation.z = 0.0
         p.orientation.w = 1.0
-        return forward(p, -0.24)
+        return forward(p, -0.40)
 
     def get_pose_grasp(self, pose):
         p = copy.deepcopy(pose)
@@ -183,7 +210,7 @@ class Grabber:
         p.orientation.y = 1.0
         p.orientation.z = 0.0
         p.orientation.w = 1.0
-        return forward(p, -0.09)
+        return forward(p, -0.19)
 
     def get_pose_lift(self, pose):
         return self.get_pose_pre(pose)
