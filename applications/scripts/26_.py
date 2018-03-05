@@ -227,7 +227,7 @@ class GripperTeleop(object):
         print 'moving'
         p = forward(self._gripper_im.pose, -X_OFFSET)
         print "<<<<<<<<<<<<<<<<<<<<<"
-        print "POSITION: p"
+        print "POSITION:", p
         print ">>>>>>>>>>>>>>>>>>>>>"
         self._arm.move_to_pose(to_pose_stamped(p))
         pass

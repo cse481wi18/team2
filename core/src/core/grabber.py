@@ -70,11 +70,12 @@ class Grabber:
         pos_pre = to_pose_stamped(self.get_pose_pre(base_link_pose))
         pos_grasp = to_pose_stamped(self.get_pose_grasp(base_link_pose))
         pos_lift = to_pose_stamped(self.get_pose_lift(base_link_pose))
+        pos_pre_unload = to_pose_stamped(self.get_pose_pre_unload(base_link_pose))
         pos_unload = to_pose_stamped(self.get_pose_unload(base_link_pose))
 
         # Visualize
         i = 12000
-        for ps in [pos_pre, pos_grasp, pos_lift, pos_unload]:
+        for ps in [pos_pre, pos_grasp, pos_lift, pos_pre_unload]:
             object_marker = Marker()
             object_marker.ns = "objects"
             object_marker.id = i
@@ -91,8 +92,20 @@ class Grabber:
             self.marker_pub.publish(object_marker)
             i += 1
 
-        if self.check_pose(pos_pre) and self.check_pose(pos_grasp) and self.check_pose(pos_lift):
+        if self.check_pose(pos_pre) and self.check_pose(pos_grasp) and self.check_pose(pos_lift) and self.check_pose(pos_pre_unload):
             self._gripper.open()
+
+            if self.check_pose(pos_pre_unload) is True:
+                err = self._arm.move_to_pose(pos_pre_unload)
+                if err is None:
+                    print "move to pre-unload-pose(before grasp)"
+                    pass
+                else:
+                    print "Failed to reach pre-unload-pose(before grasp)"
+            else:
+                print "Can't reach pre-unload-pose(before grasp)"
+
+            rospy.sleep(0.1)
 
             if self.check_pose(pos_pre) is True:
                 err = self._arm.move_to_pose(pos_pre)
@@ -126,6 +139,17 @@ class Grabber:
                     print "Failed to reach lift-pose"
             else:
                 print "Can't reach lift-pose"
+
+            rospy.sleep(0.1)
+            if self.check_pose(pos_pre_unload) is True:
+                err = self._arm.move_to_pose(pos_pre_unload)
+                if err is None:
+                    print "move to pre-unload-pose"
+                    pass
+                else:
+                    print "Failed to reach pre-unload-pose"
+            else:
+                print "Can't reach pre-unload-pose"
 
             rospy.sleep(0.1)
             if self.check_pose(pos_unload) is True:
@@ -167,13 +191,35 @@ class Grabber:
         # p.position.z += 0.2
         # return p
 
+    def get_pose_pre_unload(self, pose):
+        p = Pose()
+        p.position.x = 0.37702
+        p.position.y = 0.22687
+        p.position.z = 1.14154
+        p.orientation.x = 0.24932
+        p.orientation.y = 0.46137
+        p.orientation.z = 0.84951
+        p.orientation.w = 0.05758
+        return p
+
     def get_pose_unload(self, pose):
         p = Pose()
-        p.position.x = -0.34511
-        p.position.y = 0.22313
-        p.position.z = 0.98066
-        p.orientation.x = -0.36003
-        p.orientation.y = 0.72444
-        p.orientation.z = 0.46414
-        p.orientation.w = -0.36075
-        return p
+        p.position.x = -0.29742
+        p.position.y = 0.18528
+        p.position.z = 0.90081
+        p.orientation.x = -0.27022
+        p.orientation.y = 0.30241
+        p.orientation.z = 0.83477
+        p.orientation.w = -0.37242
+        return p    
+        
+    # def get_pose_unload(self, pose):
+    #     p = Pose()
+    #     p.position.x = -0.34511
+    #     p.position.y = 0.22313
+    #     p.position.z = 0.98066
+    #     p.orientation.x = -0.36003
+    #     p.orientation.y = 0.72444
+    #     p.orientation.z = 0.46414
+    #     p.orientation.w = -0.36075
+    #     return p
