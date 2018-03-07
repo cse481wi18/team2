@@ -1,22 +1,44 @@
 <link rel="import" href="../bower_components/polymer/polymer-element.html">
 <link rel="import" href="../bower_components/ros-websocket/ros-websocket.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html"> 
+<link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../bower_components/ros-service/ros-service.html">
 
 <dom-module id="robot-controller-app">
   <template>
+    <style is="custom-style" include="iron-flex"></style>
     <style>
       :host {
         display: block;
       }
+      paper-button {                                                             
+        background-color:#eee;  
+        user-select: none;                               
+      }
     </style>
-    <h2>Hello [[prop1]]!</h2>
-  <ros-websocket auto ros="{{ros}}"
-    url="{{url}}"
-    on-connection="_handleConnection"
-    on-close="_handleClose"
-    on-error="_handleError">
-  </ros-websocket>
 
-  <h1>Fetch teleop</h1>
+    <ros-websocket auto ros="{{ros}}"
+      url="{{url}}"
+      on-connection="_handleConnection"
+      on-close="_handleClose"
+      on-error="_handleError">
+    </ros-websocket>
+
+    <ros-service                                                                 
+      id="startService"
+      on-response="_handleStartSuccess"
+      on-fail="_handleStartError"
+      name="/robot_controller/set_start"
+      ros="{{ros}}"
+      service-type="robot_controller/SetStart">
+    </ros-service>
+
+    <h1>Fetch teleop</h1>
+    [[status]]
+
+    <div class="layout horizontal center">                          
+      <paper-button on-tap="_setStart">Start Program</paper-button>                                     
+    </div>
   </template>
 
   <script>
@@ -33,6 +55,33 @@
             value: 'robot-controller-app'
           }
         };
+      }
+
+      _handleConnection() {
+        this.status = 'Connected to the websocket server.';
+        console.log(this.status);
+      }
+      _handleClose() {
+        this.status = 'Closed connection to the websocket server.';
+        console.log(this.status);
+      }
+      _handleError() {
+        this.status = 'Error connecting to the websocket server.';
+        console.log(this.status);
+      }
+      _handleTorsoHeight(event) {
+        this.torsoHeightApprox = event.detail.data.toFixed(3);
+      }
+
+      _setStart() {
+        this.status = 'Program Started';
+        this.$.startService.call({start_msg: 'start'});
+      }
+      _handleStartSuccess() {
+        this.status = 'Program Started Success';
+      }
+      _handleStartError(evt) {
+        this.status = 'Error: ' + evt.detail;
       }
     }
 

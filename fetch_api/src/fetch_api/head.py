@@ -99,9 +99,7 @@ class Head(object):
         # TODO: Add trajectory point created above to trajectory
         goal = FollowJointTrajectoryGoal()
         goal.trajectory = trajectory
-
-        print goal
-
+        
         # TODO: Send the goal
         # TODO: Wait for result
         self.traj_client.send_goal(goal)

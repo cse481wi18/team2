@@ -26,26 +26,22 @@ def dist_between(x, y):
     return np.sqrt(dx + dy)
 
 class Planner:
+    # All poses in Planner are of frame "/map"
+    
     def __init__(self):
         # self.header_frame_id = None
         # self.header_init = False
         # self.grabber = core.Grabber()
-        self.confidence_drop_rate = 0.9
+        self.confidence_drop_rate = 1.0
+        self.confidence_threshold = 1.0
         self.paused = True
 
         self.listener = TransformListener(rospy.Duration(10))
 
-         # Point
-        #self.last_poses = []
         self.robot_point = None # Point
-        # self.all_points = [] # [Point]
         self.all_points_confidences = {} # {Point: double}
-        # self.ordered_object_points = [] # [Point]
-        # self.ordered_pickup_poses = [] #
         self.object_pose_sub = rospy.Subscriber('recognizer/object_positions', TennisBallPoses, self.save_ball_poses_cb)
-        # self.ordered_pickup_pub = rospy.Publisher('/ordered_pickup', TennisBallPoses, queue_size=1)
         self.ordered_ball_pub = rospy.Publisher('/ordered_ball', TennisBallPoses, queue_size=1)
-        self.unordered_pub = rospy.Publisher('/unordered_balls', TennisBallPoses, queue_size=1)
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
         self.robot_pose_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.save_robot_pose_cb)
         
@@ -55,20 +51,27 @@ class Planner:
     def pause(self):
         self.paused = True
 
-    def unpause(self):
+    def unpause(self, confidence_drop_rate, confidence_threshold):
+        self.confidence_drop_rate = confidence_drop_rate
+        self.confidence_threshold = confidence_threshold
         self.paused = False
 
+    def session(self, fn, confidence_drop_rate, confidence_threshold):
+        self.unpause(confidence_drop_rate, confidence_threshold)
+        fn()
+        self.pause()
+
     def get_high_confidence_points(self):
-        return list(filter(lambda pt: self.all_points_confidences[pt] > 1.0, self.all_points_confidences.keys()))
+        return list(filter(lambda pt: self.all_points_confidences[pt] > self.confidence_threshold, self.all_points_confidences.keys()))
 
     def get_pose(self):
         # return []
 
         # (Planner) -> [?]
         while self.all_points_confidences.keys() is [] or self.robot_point is None:
-            return None
+            return []
         points = self.get_high_confidence_points()
-        print "Planner:", len(points), "high-confidence points"
+        print "Planner:", len(self.all_points_confidences.keys()), " points"
 
         distances = [dist_between(p, self.robot_point) for p in points]
         sorted_idx = np.argsort(distances)
@@ -167,6 +170,9 @@ class Planner:
         for p in new_points: 
             new_confidences[p] += 1.0
         self.all_points_confidences = new_confidences
+
+        # Display purposes
+        self.get_pose()
 
     def save_robot_pose_cb(self, robot_pose_msg):
         # (Planner, PoseWithCovarianceStamped) -> None

@@ -1,0 +1,4 @@
+<launch>
+  <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+  <node pkg="robot_controller" type="start_actuators_node.py" name="robot_controller_start_actuators" />
+</launch>

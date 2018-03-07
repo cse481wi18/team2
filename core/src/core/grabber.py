@@ -30,46 +30,53 @@ def move_pose(p, x, y, z):
     return p
 
 class Grabber:
-    def __init__(self, planner):
+    # All poses in Grabber are of frame "/base_link"
+
+    def __init__(self, planner, finder):
         self._arm = fetch_api.Arm()
         self.head = fetch_api.Head()
         self._gripper = fetch_api.Gripper()
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
-        # self.object_pose_sub = rospy.Subscriber('recognizer/object_positions', TennisBallPoses, self.save_ball_poses_cb)
         self.listener = TransformListener(rospy.Duration(10))
         self.planner = planner
-
-    # def save_ball_poses_cb(self, msg):
-    #     # (Planner, TennisBallPoses) -> None
-    #     if len(msg.poses) > 0:
-    #         header_frame_id = msg.poses[0].header.frame_id
-    #         self.listener.waitForTransform('/map', header_frame_id, rospy.Time(), rospy.Duration(4.0))
-
-    #     new_points = map(lambda p: self.listener.transformPose("map", p).pose.position, msg.poses)
-    #     self.all_points = new_points
+        self.finder = finder
+        self.grasp_pose_offset = 0.00
 
     def grab(self, pose):
         # (Planner, Pose) -> bool
+
+        # TEMP CODE
+        tmp = copy.deepcopy(self.planner.all_points_confidences)
+        self.planner.all_points_confidences = {}
+
         # print "Planned pose:", pose
-        self.head.look_at("base_link", pose.position.x, pose.position.y, pose.position.z)
-        # self.planner.all_points = []
-        self.planner.confidence_drop_rate = 0.80
-        self.planner.unpause()
-        rospy.sleep(2)
-        self.planner.pause()
+        self.finder.observe_pose(pose, "base_link")
         
-        print "Finished looking at ball"
         res = self.planner.get_pose()
-        pose = res[0]
+        if len(res) == 0:
+            print "Grabber: planner did not return any pose"
+            self.planner.all_points_confidences = tmp
+            return
+        actual_pose = res[0]
+
+        self.planner.all_points_confidences = tmp
+        # END OF TEMP CODE
+
         # print "Adjusted pose:", pose
 
         # Change frame
         object_poseStamped = PoseStamped()
         object_poseStamped.header.frame_id = "map"
-        object_poseStamped.pose = pose
+        object_poseStamped.pose = actual_pose
         listener = TransformListener()
         listener.waitForTransform('/base_link', '/map', rospy.Time(), rospy.Duration(4.0))
         base_link_pose = listener.transformPose('/base_link', object_poseStamped).pose
+
+        self.grasp_pose_offset = 0.00
+        while self.check_pose(to_pose_stamped(self.get_pose_grasp(base_link_pose))) is False and self.grasp_pose_offset < 0.02:
+            self.grasp_pose_offset += 0.01
+
+        print "Grabber: grasp pose offset =", self.grasp_pose_offset
 
         pos_pre = to_pose_stamped(self.get_pose_pre(base_link_pose))
         pos_grasp = to_pose_stamped(self.get_pose_grasp(base_link_pose))
@@ -136,7 +143,7 @@ class Grabber:
                 return False
 
             rospy.sleep(0.1)
-            
+
             if self.check_pose(pos_grasp) is True:
                 err = self._arm.move_to_pose(pos_grasp)
                 if err is None:
@@ -171,7 +178,6 @@ class Grabber:
                     pass
                 else:
                     print "Failed to reach pre-unload-pose"
-                    return False
             else:
                 print "Can't reach pre-unload-pose"
                 return False
@@ -210,7 +216,7 @@ class Grabber:
         p.orientation.y = 1.0
         p.orientation.z = 0.0
         p.orientation.w = 1.0
-        return forward(p, -0.19)
+        return forward(p, -0.19 - self.grasp_pose_offset)
 
     def get_pose_lift(self, pose):
         return self.get_pose_pre(pose)
@@ -239,14 +245,7 @@ class Grabber:
         p.orientation.z = 0.83477
         p.orientation.w = -0.37242
         return p    
-        
-    # def get_pose_unload(self, pose):
-    #     p = Pose()
-    #     p.position.x = -0.34511
-    #     p.position.y = 0.22313
-    #     p.position.z = 0.98066
-    #     p.orientation.x = -0.36003
-    #     p.orientation.y = 0.72444
-    #     p.orientation.z = 0.46414
-    #     p.orientation.w = -0.36075
-    #     return p
+
+    def goto_pose_unload(self):
+        pos_unload = to_pose_stamped(self.get_pose_unload(None))
+        self._arm.move_to_pose(pos_unload)

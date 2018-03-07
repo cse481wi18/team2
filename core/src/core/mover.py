@@ -3,6 +3,8 @@ import actionlib
 import math
 import tf.transformations as tft
 import numpy as np
+import copy
+import fetch_api
 from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, PoseStamped, Point, Quaternion
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from visualization_msgs.msg import Marker
@@ -30,6 +32,8 @@ def dist_between(x, y):
 class Mover:
     def __init__(self):
         self.robot_point = None # Point
+        self.robot_quaternion = None # Quaternion
+        self.base = fetch_api.Base()
         self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         self.robot_pose_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.save_robot_pose_cb)
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
@@ -38,6 +42,7 @@ class Mover:
     def save_robot_pose_cb(self, robot_pose_msg):
         # (Planner, PoseWithCovarianceStamped) -> None
         self.robot_point = robot_pose_msg.pose.pose.position
+        self.robot_quaternion = robot_pose_msg.pose.pose.orientation
 
     # def goto_pose(self, pose):
     #     if pose is None:
@@ -57,7 +62,7 @@ class Mover:
             rospy.sleep(1)
 
         pickup_pose = self.get_pickup_pose(ball_pose.position)
-        print "Mover: Going to first pose"
+        print "Mover: Going to grasp pose"
         pickup_pose.orientation = quaternion_between(self.robot_point, ball_pose.position)
 
         poseStamped = PoseStamped()
@@ -84,6 +89,7 @@ class Mover:
 
         self.move_base_client.send_goal(goal)
         res = self.move_base_client.wait_for_result(rospy.Duration(20.0))
+        # self.move_base_client.cancel_all_goals()
         print "Mover: returns", res
 
         # return poseStamped
@@ -95,6 +101,60 @@ class Mover:
         # self.grabber.move(base_link_pose)
         # print "base_link_pose:", base_link_pose
 
+    def face_pose(self, ball_pose):
+        while self.robot_point is None:
+            print "Mover: Robot pose not received, sleeping"
+            rospy.sleep(1)
+
+        pickup_pose = Pose()
+        pickup_pose.position = copy.deepcopy(self.robot_point)
+        print "Mover: facing towards ball"
+        pickup_pose.orientation = quaternion_between(self.robot_point, ball_pose.position)
+
+        poseStamped = PoseStamped()
+        poseStamped.header.frame_id = "map"
+        poseStamped.pose = pickup_pose
+
+        goal = MoveBaseGoal()
+        goal.target_pose = poseStamped
+
+        object_marker = Marker()
+        object_marker.ns = "objects"
+        object_marker.id = 83456214
+        object_marker.header.frame_id = "map"
+        object_marker.type = Marker.SPHERE
+        object_marker.pose = pickup_pose
+        object_marker.scale.x = 0.3
+        object_marker.scale.y = 0.3
+        object_marker.scale.z = 0.05
+        object_marker.color.r = 1
+        object_marker.color.g = 1
+        object_marker.color.b = 0
+        object_marker.color.a = 0.3
+        self.marker_pub.publish(object_marker)
+
+        object_marker2 = copy.deepcopy(object_marker)
+        object_marker2.pose.position = ball_pose.position
+        self.marker_pub.publish(object_marker2)
+
+        print "Mover: face_pose - debug 1"
+        q1 = self.robot_quaternion
+        q2 = pickup_pose.orientation
+        print "Mover: face_pose - debug 2"
+        qm1 = tft.quaternion_matrix([q1.x, q1.y, q1.z, q1.w])
+        qm2 = tft.quaternion_matrix([q2.x, q2.y, q2.z, q2.w])
+        print "Mover: face_pose - debug 3"
+        theta1 = math.atan2(qm1[1,0], qm1[0,0])
+        theta2 = math.atan2(qm2[1,0], qm2[0,0])
+        print "Mover: face_pose - debug 4"
+        difference = (theta1 - theta2) % (2 * math.pi)
+        difference_deg = difference / math.pi * 180
+        print "Mover: face_pose - debug 5"
+        self.base.turn(-difference_deg)
+
+        # self.move_base_client.send_goal(goal)
+        # res = self.move_base_client.wait_for_result(rospy.Duration(20.0))
+        # self.move_base_client.cancel_all_goals()
 
     def get_pickup_pose(self, ball_point):
         # (Planner, Point) -> Pose
