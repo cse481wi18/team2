@@ -24,7 +24,7 @@ def ndarray_to_quaternion(arr):
     return q
 
 def dist_between(x, y):
-    # (Planner, Point, Point) -> double
+    # (Point, Point) -> double
     dx = (x.x - y.x) ** 2
     dy = (x.y - y.y) ** 2
     return np.sqrt(dx + dy)
@@ -34,10 +34,11 @@ class Mover:
         self.robot_point = None # Point
         self.robot_quaternion = None # Quaternion
         self.base = fetch_api.Base()
-        self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+        # self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+        # self.move_base_client = rospy.Publisher("/move_base_simple/goal", PoseStamped)
         self.robot_pose_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.save_robot_pose_cb)
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
-        self.grab_distance_offset = 0.5 # for future measurement
+        self.grab_distance_offset = 0.55 # for future measurement
 
     def save_robot_pose_cb(self, robot_pose_msg):
         # (Planner, PoseWithCovarianceStamped) -> None
@@ -87,10 +88,15 @@ class Mover:
         object_marker.color.a = 0.3
         self.marker_pub.publish(object_marker)
 
-        self.move_base_client.send_goal(goal)
-        res = self.move_base_client.wait_for_result(rospy.Duration(20.0))
+        d = dist_between(self.robot_point, pickup_pose.position)
+        self.base.go_forward(d)
+
+        # self.move_base_client.publish(poseStamped)
+        # self.move_base_client.wait_for_result(rospy.Duration(20.0))
+        # self.move_base_client.send_goal(goal)
+        # res = self.move_base_client.wait_for_result(rospy.Duration(20.0))
         # self.move_base_client.cancel_all_goals()
-        print "Mover: returns", res
+        # print "Mover: returns", res
 
         # return poseStamped
         #  = copy.deepcopy(poseStamped)

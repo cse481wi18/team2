@@ -18,6 +18,18 @@ def is_too_close(p1, p2):
     dist = np.sqrt(difference.dot(difference))
     return dist < 0.1
 
+def is_close(p1, p2): 
+    # (Point, Point) -> bool
+    difference = np.array([p1.x - p2.x, p1.y - p2.y, p1.z - p2.z])
+    dist = np.sqrt(difference.dot(difference))
+    return dist < 0.2
+
+def combine_points(p1, p2, w1, w2):
+    p = Point()
+    p.x = 1.0 * (p1.x * w1 + p2.x * w2) / (w1 + w2)
+    p.y = 1.0 * (p1.y * w1 + p2.y * w2) / (w1 + w2)
+    p.z = 1.0 * (p1.z * w1 + p2.z * w2) / (w1 + w2)
+    return p
 
 def dist_between(x, y):
     # (Planner, Point, Point) -> double
@@ -62,7 +74,7 @@ class Planner:
         self.pause()
 
     def get_high_confidence_points(self):
-        return list(filter(lambda pt: self.all_points_confidences[pt] > self.confidence_threshold, self.all_points_confidences.keys()))
+        return list(filter(lambda pt: self.all_points_confidences[pt] > 1.0, self.all_points_confidences.keys()))
 
     def get_pose(self):
         # return []
@@ -71,7 +83,7 @@ class Planner:
         while self.all_points_confidences.keys() is [] or self.robot_point is None:
             return []
         points = self.get_high_confidence_points()
-        print "Planner:", len(self.all_points_confidences.keys()), " points"
+        # print "Planner:", len(self.all_points_confidences.keys()), " points"
 
         distances = [dist_between(p, self.robot_point) for p in points]
         sorted_idx = np.argsort(distances)
@@ -121,7 +133,8 @@ class Planner:
             name_marker.color.g = 0
             name_marker.color.b = 1.0
             name_marker.color.a = 1.0
-            name_marker.text = "" + str(self.all_points_confidences[pose.position])
+            if pose.position in self.all_points_confidences:
+                name_marker.text = "" + str(self.all_points_confidences[pose.position])
             self.marker_pub.publish(name_marker)
             i += 1
 
@@ -131,7 +144,7 @@ class Planner:
         print "Planner: reducing confidence"
         pts = []
         for pt in self.get_high_confidence_points():
-            if is_too_close(pt, pose.position):
+            if is_close(pt, pose.position):
                 pts.append(pt)
         for pt in pts:
             del self.all_points_confidences[pt]
@@ -146,29 +159,45 @@ class Planner:
         if len(msg.poses) > 0:
             self.header_frame_id = msg.poses[0].header.frame_id
             # self.last_time_stamp = msg.poses[0].header.stamp
-            self.listener.waitForTransform('/map', self.header_frame_id, rospy.Time(), rospy.Duration(4.0))
+            self.listener.waitForTransform('/map', self.header_frame_id, rospy.Time.now(), rospy.Duration(4.0))
 
         new_points = map(lambda p: self.listener.transformPose("map", p).pose.position, msg.poses)
+        new_points = filter(lambda p: p.z < 0.5, new_points)
+        # merged_points = []
+        merged = {}
+        for p in new_points:
+            merged[p] = False
 
         # Merge poses
         old_points = self.all_points_confidences.keys()
         valid_old_points = []
         new_confidences = {}
-        for p in old_points + new_points:
-            new_confidences[p] = 0.0
+        # for p in old_points + new_points:
+        #     new_confidences[p] = 0.0
         for p in old_points:
             too_close = False
             for q in new_points:
                 if is_too_close(p, q):
                     too_close = True
-                    new_confidences[q] += self.all_points_confidences[p]
+                    # m = combine_points(p, q, self.all_points_confidences[p], 1.0)
+                    m = q
+                    if m not in new_confidences:
+                        new_confidences[m] = 0.0
+                    new_confidences[m] += self.all_points_confidences[p] + 1.0
+                    merged[q] = True
                     break
             if not too_close:
+                if p not in new_confidences:
+                    new_confidences[p] = 0.0
                 new_confidences[p] += self.all_points_confidences[p] * self.confidence_drop_rate
                 # valid_old_points.append(p)
         # self.all_points = valid_old_points + new_points
-        for p in new_points: 
-            new_confidences[p] += 1.0
+        non_merged_points = [p for p in new_points if not merged[p]]
+        # print "Planner: merged", len(non_merged_points), "points"
+        for q in non_merged_points:
+            if q not in new_confidences:
+                new_confidences[q] = 0.0
+            new_confidences[q] += 1.0
         self.all_points_confidences = new_confidences
 
         # Display purposes

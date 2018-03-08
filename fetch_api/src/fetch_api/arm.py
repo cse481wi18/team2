@@ -91,14 +91,14 @@ class Arm(object):
 
     def move_to_pose(self,
                     pose_stamped,
-                    allowed_planning_time=10.0,
+                    allowed_planning_time=3.0,
                     execution_timeout=15.0,
                     group_name='arm',
-                    num_planning_attempts=1,
+                    num_planning_attempts=3,
                     plan_only=False,
-                    replan=False,
-                    replan_attempts=5,
-                    tolerance=0.01,
+                    replan=True,
+                    replan_attempts=3,
+                    tolerance=0.003,
                     orientation_constraint=None):
         """Moves the end-effector to a pose, using motion planning.
 

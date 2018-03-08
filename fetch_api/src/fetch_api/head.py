@@ -38,8 +38,8 @@ class Head(object):
     """
     MIN_PAN = -math.pi / 2  # TODO: Minimum pan angle, in radians.
     MAX_PAN = math.pi / 2  # TODO: Maximum pan angle, in radians.
-    MIN_TILT = -math.pi / 2  # TODO: Minimum tilt angle, in radians.
-    MAX_TILT = math.pi / 4  # TODO: Maximum tilt angle, in radians.
+    MIN_TILT = -math.pi  # TODO: Minimum tilt angle, in radians.
+    MAX_TILT = math.pi  # TODO: Maximum tilt angle, in radians.
 
     def __init__(self):
         self.traj_client = actionlib.SimpleActionClient(PAN_TILT_ACTION_NAME, FollowJointTrajectoryAction)

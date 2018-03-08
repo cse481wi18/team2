@@ -91,6 +91,11 @@ class Base(object):
         if (angular_distance >= 180):
             angular_distance -= 360
 
+        # TODO: ????????????????????????????????????
+        # print "base-turn: wtf"
+        if angular_distance < 20 and angular_distance > -20:
+            return
+
         # TODO: rospy.sleep until the base has received at least one message on /odom
         self.start_odom = None
         self.received = False
@@ -105,7 +110,10 @@ class Base(object):
         # TODO: CONDITION should check if the robot has rotated the desired amount
         # TODO: Be sure to handle the case where the desired amount is negative!
         difference_deg = 0
-        while abs(difference_deg) < abs(angular_distance):
+
+        i = 0
+        while abs(difference_deg) < abs(angular_distance) and i < 100:
+            # print "base-turn: wtf"
             cur = self.latest_quaternion
             m_cur = tft.quaternion_matrix([cur.x, cur.y, cur.z, cur.w])
             theta_rads_cur = math.atan2(m_cur[1,0], m_cur[0,0])
@@ -118,6 +126,7 @@ class Base(object):
             direction = -1 if angular_distance < 0 else 1
             self.move(0, direction * speed)
             rate.sleep()
+            i += 1
 
     def move(self, linear_speed, angular_speed):
         """Moves the base instantaneously at given linear and angular speeds.

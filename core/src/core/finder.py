@@ -5,9 +5,10 @@ from visualization_msgs.msg import Marker
 class Finder:
     # All poses in Finder are of frame "/map", unless otherwise specified
     OBSERVE_TIME_SECS = 3.0
-    FIND_TURN_STEP_DEGREES = 90.0
-    FIND_HEAD_PANS = [0.0]
-    FIND_HEAD_TILTS = [0.8, 1.3, 1.8]
+    FIND_TIME_SECS = 3.0
+    FIND_TURN_STEP_DEGREES = 60.0
+    FIND_HEAD_PANS = [0.5, 0.0, -0.5]
+    FIND_HEAD_TILTS = [0.5, 1.0, 1.5]
     ANCHOR_DISTANCE = 5
     FIND_CONFIDENCE_DROP_RATE = 1.0
     OBSERVE_POSE_CONFIDENCE_DROP_RATE = 0.8
@@ -22,15 +23,15 @@ class Finder:
       # Look around
       print "Finder:", "looking around..."
       def script():
-        degree_sum = 0
-        while degree_sum >= 0 and degree_sum < 360:
-          for pan in Finder.FIND_HEAD_PANS:
-            for tilt in Finder.FIND_HEAD_TILTS:
-              self.head.pan_tilt(pan, tilt)
-              rospy.sleep(0.1)
-          self.base.turn(Finder.FIND_TURN_STEP_DEGREES)
-          degree_sum += Finder.FIND_TURN_STEP_DEGREES
-      self.planner.session(script, Finder.FIND_CONFIDENCE_DROP_RATE, 10.0)
+        rospy.sleep(Finder.FIND_TIME_SECS)
+
+      degree_sum = 0
+      # while degree_sum >= 0 and degree_sum < 360:
+      for pan in Finder.FIND_HEAD_PANS:
+        for tilt in Finder.FIND_HEAD_TILTS:
+          self.head.pan_tilt(pan, tilt)
+          rospy.sleep(0.5)
+          self.planner.session(script, Finder.FIND_CONFIDENCE_DROP_RATE, 2.0)
 
     def move_and_find(self):
       # Move robot to a nearest anchor point
@@ -42,6 +43,8 @@ class Finder:
       # Takes OBSERVE_TIME_SECS(3) seconds
       print "Finder:", "observing..."
       def script():
+        rospy.sleep(Finder.OBSERVE_TIME_SECS)
+      def script2():
         rospy.sleep(Finder.OBSERVE_TIME_SECS)
 
       object_marker = Marker()
@@ -59,5 +62,9 @@ class Finder:
       object_marker.color.a = 0.3
       self.marker_pub.publish(object_marker)
 
+      # self.head.look_at(frame_id, pose.position.x, pose.position.y, pose.position.z)
+      # self.planner.session(script, Finder.OBSERVE_POSE_CONFIDENCE_DROP_RATE, 1.0)
+      # self.head.look_at(frame_id, pose.position.x, pose.position.y, pose.position.z + 0.01)
+      # self.planner.session(script, Finder.OBSERVE_POSE_CONFIDENCE_DROP_RATE, 1.0)
       self.head.look_at(frame_id, pose.position.x, pose.position.y, pose.position.z)
       self.planner.session(script, Finder.OBSERVE_POSE_CONFIDENCE_DROP_RATE, 1.0)
