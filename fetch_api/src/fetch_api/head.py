@@ -64,10 +64,12 @@ class Head(object):
         # TODO: Wait for result
         goal = PointHeadGoal()
         goal.target.point = Point(x, y, z)
+        goal.max_velocity = 10000.0
         goal.target.header.frame_id = frame_id
 
         self.point_client.send_goal(goal)
         self.point_client.wait_for_result(rospy.Duration.from_sec(5.0))
+        self.point_client.cancel_all_goals()
 
     def pan_tilt(self, pan, tilt):
         """Moves the head by setting pan/tilt angles.

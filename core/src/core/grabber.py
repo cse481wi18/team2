@@ -2,6 +2,7 @@ import fetch_api
 import rospy
 import copy
 import numpy as np
+import core
 import tf.transformations as tft
 from tf import TransformListener
 from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, PoseStamped
@@ -41,6 +42,7 @@ class Grabber:
         self.planner = planner
         self.finder = finder
         self.grasp_pose_offset = 0.00
+        self.tmp_planner = core.Planner("/odom")
 
     def grab(self, pose):
         # (Planner, Pose) -> bool
@@ -48,16 +50,19 @@ class Grabber:
         # Returns -1 if pose not valid, 0 if failed and 1 if succeeded
 
         # TEMP CODE!
-        tmp = copy.deepcopy(self.planner.all_points_confidences)
-        self.planner.all_points_confidences = {}
+        # tmp = copy.deepcopy(self.planner.all_points_confidences)
+        # self.planner.all_points_confidences = {}
 
         # print "Planned pose:", pose
+        print "Grabber: replacing planner"
+        self.tmp_planner.all_points_confidences = {}
+        self.finder.planner = self.tmp_planner
         self.finder.observe_pose(pose, "map")
-        
-        res = self.planner.get_pose()
+        self.finder.planner = self.planner
+        res = self.tmp_planner.get_pose()
 
         # TEMP CODE!
-        self.planner.all_points_confidences = tmp
+        # self.planner.all_points_confidences = tmp
 
         if len(res) == 0:
             print "Grabber: planner did not return any pose"
@@ -69,10 +74,10 @@ class Grabber:
 
         # Change frame
         object_poseStamped = PoseStamped()
-        object_poseStamped.header.frame_id = "map"
+        object_poseStamped.header.frame_id = "odom"
         object_poseStamped.pose = actual_pose
         listener = TransformListener()
-        listener.waitForTransform('/base_link', '/map', rospy.Time(), rospy.Duration(4.0))
+        listener.waitForTransform('/base_link', '/odom', rospy.Time(), rospy.Duration(4.0))
         base_link_pose = listener.transformPose('/base_link', object_poseStamped).pose
 
         self.grasp_pose_offset = 0.00

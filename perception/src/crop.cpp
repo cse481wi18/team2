@@ -36,17 +36,17 @@ namespace perception {
     ROS_INFO("Cropped to %ld points", cropped_cloud->size());
 
     // downsample the points
-    // PointCloudC::Ptr downsampled_cloud(new PointCloudC());
-    // pcl::VoxelGrid<PointC> vox;
-    // vox.setInputCloud(cropped_cloud);
-    // double voxel_size;
-    // ros::param::param("voxel_size", voxel_size, 0.01);
-    // vox.setLeafSize(voxel_size, voxel_size, voxel_size);
-    // vox.filter(*downsampled_cloud);
-    // ROS_INFO("Downsampled to %ld points", downsampled_cloud->size());
+    PointCloudC::Ptr downsampled_cloud(new PointCloudC());
+    pcl::VoxelGrid<PointC> vox;
+    vox.setInputCloud(cropped_cloud);
+    double voxel_size;
+    ros::param::param("voxel_size", voxel_size, 0.01);
+    vox.setLeafSize(voxel_size, voxel_size, voxel_size);
+    vox.filter(*downsampled_cloud);
+    ROS_INFO("Downsampled to %ld points", downsampled_cloud->size());
 
     sensor_msgs::PointCloud2 msg_out;
-    pcl::toROSMsg(*cropped_cloud, msg_out);
+    pcl::toROSMsg(*downsampled_cloud, msg_out);
     msg_out.header.frame_id = msg.header.frame_id;
     pub_.publish(msg_out); 
   }

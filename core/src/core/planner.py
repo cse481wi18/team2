@@ -38,15 +38,16 @@ def dist_between(x, y):
     return np.sqrt(dx + dy)
 
 class Planner:
-    # All poses in Planner are of frame "/map"
+    # All poses in Planner are of frame self.frame
     
-    def __init__(self):
+    def __init__(self, frame):
         # self.header_frame_id = None
         # self.header_init = False
         # self.grabber = core.Grabber()
         self.confidence_drop_rate = 1.0
         self.confidence_threshold = 1.0
         self.paused = True
+        self.frame = frame
 
         self.listener = TransformListener(rospy.Duration(10))
 
@@ -108,7 +109,7 @@ class Planner:
             object_marker = Marker()
             object_marker.ns = "objects"
             object_marker.id = i
-            object_marker.header.frame_id = "map"
+            object_marker.header.frame_id = self.frame
             object_marker.type = Marker.SPHERE
             object_marker.pose = copy.deepcopy(pose)
             object_marker.scale.x = 0.08
@@ -121,7 +122,7 @@ class Planner:
             name_marker = Marker()
             name_marker.ns = "confidence"
             name_marker.id = i + j
-            name_marker.header.frame_id = "map"
+            name_marker.header.frame_id = self.frame
             name_marker.type = Marker.TEXT_VIEW_FACING
             name_marker.pose = copy.deepcopy(pose)
             name_marker.pose.position.z += 0.1
@@ -159,9 +160,9 @@ class Planner:
         if len(msg.poses) > 0:
             self.header_frame_id = msg.poses[0].header.frame_id
             # self.last_time_stamp = msg.poses[0].header.stamp
-            self.listener.waitForTransform('/map', self.header_frame_id, rospy.Time.now(), rospy.Duration(4.0))
+            self.listener.waitForTransform(self.frame, self.header_frame_id, rospy.Time.now(), rospy.Duration(4.0))
 
-        new_points = map(lambda p: self.listener.transformPose("map", p).pose.position, msg.poses)
+        new_points = map(lambda p: self.listener.transformPose(self.frame, p).pose.position, msg.poses)
         new_points = filter(lambda p: p.z < 0.5, new_points)
         # merged_points = []
         merged = {}
