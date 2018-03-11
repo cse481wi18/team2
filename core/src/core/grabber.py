@@ -33,7 +33,7 @@ def move_pose(p, x, y, z):
 class Grabber:
     # All poses in Grabber are of frame "/base_link"
 
-    def __init__(self, planner, finder):
+    def __init__(self, messager, planner, finder):
         self._arm = fetch_api.Arm()
         self.head = fetch_api.Head()
         self._gripper = fetch_api.Gripper()
@@ -41,8 +41,10 @@ class Grabber:
         self.listener = TransformListener(rospy.Duration(10))
         self.planner = planner
         self.finder = finder
+        self.messager = messager
         self.grasp_pose_offset = 0.00
-        self.tmp_planner = core.Planner("/odom")
+        self.tmp_planner = core.Planner(messager, "/odom", "observe")
+        self.base = fetch_api.Base()
 
     def grab(self, pose):
         # (Planner, Pose) -> bool
@@ -54,6 +56,9 @@ class Grabber:
         # self.planner.all_points_confidences = {}
 
         # print "Planned pose:", pose
+
+        # self.base.go_forward(-0.2, 0.3)
+
         print "Grabber: replacing planner"
         self.tmp_planner.all_points_confidences = {}
         self.finder.planner = self.tmp_planner
@@ -63,6 +68,10 @@ class Grabber:
 
         # TEMP CODE!
         # self.planner.all_points_confidences = tmp
+
+        if res is None:
+            print "Grabber: planner received NOTHING (or <3 clouds)"
+            return 0
 
         if len(res) == 0:
             print "Grabber: planner did not return any pose"
@@ -79,6 +88,8 @@ class Grabber:
         listener = TransformListener()
         listener.waitForTransform('/base_link', '/odom', rospy.Time(), rospy.Duration(4.0))
         base_link_pose = listener.transformPose('/base_link', object_poseStamped).pose
+
+        print "TEST:", base_link_pose
 
         self.grasp_pose_offset = 0.00
         while self.check_pose(to_pose_stamped(self.get_pose_grasp(base_link_pose))) is False and self.grasp_pose_offset < 0.02:

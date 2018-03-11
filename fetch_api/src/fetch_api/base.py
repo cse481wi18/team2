@@ -70,7 +70,7 @@ class Base(object):
         # TODO: CONDITION should check if the robot has traveled the desired distance
         # TODO: Be sure to handle the case where the distance is negative!
         moved_distance = 0
-        while moved_distance <= distance:
+        while moved_distance <= abs(distance):
             # TODO: you will probably need to do some math in this loop to check the CONDITION
             pos = self.latest_position
             moved_distance = math.sqrt((start.x - pos.x) ** 2 + (start.y - pos.y) ** 2 + (start.z - pos.z) ** 2)

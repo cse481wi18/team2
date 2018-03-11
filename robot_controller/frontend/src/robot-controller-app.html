@@ -3,8 +3,10 @@
 <link rel="import" href="../bower_components/paper-button/paper-button.html"> 
 <link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
 <link rel="import" href="../bower_components/ros-service/ros-service.html">
+<link rel="import" href="../bower_components/ros-topic/ros-topic.html">
 
 <dom-module id="robot-controller-app">
+
   <template>
     <style is="custom-style" include="iron-flex"></style>
     <style>
@@ -33,58 +35,212 @@
       service-type="robot_controller/SetStart">
     </ros-service>
 
-    <h1>Fetch teleop</h1>
-    [[status]]
+    <!-- TOPICS -->
+    <ros-topic auto ros="{{ros}}"
+      topic="core/messages/status1"
+      msg-type="std_msgs/String"
+      on-message="_handleUpdateStatus1">
+    </ros-topic>
 
-    <div class="layout horizontal center">                          
-      <paper-button on-tap="_setStart">Start Program</paper-button>                                     
+    <ros-topic auto ros="{{ros}}"
+      topic="core/messages/status2"
+      msg-type="std_msgs/String"
+      on-message="_handleUpdateStatus2">
+    </ros-topic>
+
+    <ros-topic auto ros="{{ros}}"
+      topic="core/messages/scan_poses"
+      msg-type="perception_msgs/Poses2d"
+      on-message="_handleUpdateScanPoses">
+    </ros-topic>
+
+    <ros-topic auto ros="{{ros}}"
+      topic="core/messages/observe_poses"
+      msg-type="perception_msgs/Poses2d"
+      on-message="_handleUpdateObservePoses">
+    </ros-topic>
+
+    <ros-topic auto ros="{{ros}}"
+      topic="core/messages/look_at_poses"
+      msg-type="perception_msgs/Poses2d"
+      on-message="_handleUpdateLookAtPose">
+    </ros-topic>
+
+    <ros-topic auto ros="{{ros}}"
+      topic="core/messages/robot_pose"
+      msg-type="perception_msgs/Pose2d"
+      on-message="_handleUpdateRobotPose">
+    </ros-topic>
+
+    <ros-topic auto ros="{{ros}}"
+      topic="core/messages/robot_orientation"
+      msg-type="std_msgs/Float64"
+      on-message="_handleUpdateRobotOrientation">
+    </ros-topic>
+
+    <link href="https://fonts.googleapis.com/css?family=Karma" rel="stylesheet">
+    <style>
+    </style>
+
+    <div id="main_container">
+      <h1>bow-tie-bot</h1>
+      <div id="connection_status">[[status]]</div>
+
+      <div class="layout horizontal center">                          
+        <paper-button on-tap="_setStart">Start Program</paper-button>                                     
+      </div>
     </div>
   </template>
 
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="index.js"></script>
   <script>
-    /**
-     * @customElement
-     * @polymer
-     */
-    class RobotControllerApp extends Polymer.Element {
-      static get is() { return 'robot-controller-app'; }
-      static get properties() {
-        return {
-          prop1: {
-            type: String,
-            value: 'robot-controller-app'
-          }
-        };
+
+      /**
+       * @customElement
+       * @polymer
+       */
+      class RobotControllerApp extends Polymer.Element {
+        static get is() { return 'robot-controller-app'; }
+        static get properties() {
+          return {
+            prop1: {
+              type: String,
+              value: 'robot-controller-app'
+            }
+          };
+        }
+        ready() {
+          super.ready();
+          console.log("ready");
+          let polymer = this;
+          let test = a(polymer);
+          window.test = test;
+          
+          this.canvas = test;
+
+          let style = `
+            #main_container>* {
+                text-align: center;
+                font-family: "Karma";
+                margin: auto;
+            }
+            #status1, #status2 {
+                width: 500px;
+                height: 20px;
+            }
+            .map_canvas {
+                position: relative;
+                width: 500px;
+                height: 500px;
+            }
+            .map_canvas .ball_marker {
+                position: absolute;
+                width: 20px;
+                height: 20px;
+            }
+          `;
+
+          let html = `
+            <!-- <div id="title">Hello world!</div> -->
+            <div id="status1" style="border: 1px blue solid">
+
+            </div>
+            <div id="status2" style="border: 1px cyan solid">
+
+            </div>
+
+            <div id="map_canvas" class="map_canvas" style="border: 1px green solid">
+                <!-- <img class="ball_marker" src="src/images/blue_marker.png" style/> -->
+            </div>
+          `
+          $("<style>").html(style).appendTo($("head"));
+          $("<div>").html(html).appendTo($("body"));
+          
+          // Polyfill
+          $.fn.animateRotate = function(startAngle, endAngle, duration, easing, complete){
+              return this.each(function(){
+                  var elem = $(this);
+
+                  $({deg: startAngle}).animate({deg: endAngle}, {
+                      duration: duration,
+                      easing: easing,
+                      step: function(now){
+                          elem.css({
+                              '-moz-transform':'rotate('+now+'deg)',
+                              '-webkit-transform':'rotate('+now+'deg)',
+                              '-o-transform':'rotate('+now+'deg)',
+                              '-ms-transform':'rotate('+now+'deg)',
+                              'transform':'rotate('+now+'deg)'
+                          });
+                      },
+                      complete: complete || $.noop
+                  });
+              });
+          };
+        }
+        connectedCallback() {
+          super.connectedCallback();
+          console.log("attached");
+        }
+        disconnectedCallback() {
+          super.disconnectedCallback();
+          console.log("detached");
+        }
+
+        _handleConnection() {
+          this.status = 'Connected to the websocket server.';
+          console.log(this.status);
+        }
+        _handleClose() {
+          this.status = 'Closed connection to the websocket server.';
+          console.log(this.status);
+        }
+        _handleError() {
+          this.status = 'Error connecting to the websocket server.';
+          console.log(this.status);
+        }
+        _handleUpdateStatus1(msg) {
+          setStatus1(msg.detail.data);
+        }
+        _handleUpdateStatus2(msg) {
+          setStatus2(msg.detail.data);
+        }
+        _handleUpdateScanPoses(msg) {
+          let ps2d = msg.detail.poses;
+          this.canvas.setOrangeMarks(ps2d)
+        }
+        _handleUpdateObservePoses(msg) {
+          let ps2d = msg.detail.poses;
+          this.canvas.setBlueMarks(ps2d)
+        }
+        _handleUpdateLookAtPose(msg) {
+          let ps2d = msg.detail.poses;
+          this.canvas.setGreenCircleMarks(ps2d)
+        }
+        _handleUpdateRobotPose(msg) {
+          let p2d = msg.detail;
+          this.canvas.setRobotPose(p2d)
+        }
+        _handleUpdateRobotOrientation(msg) {
+          let angle = parseFloat(msg.detail.data) / 3.14 * 180
+          console.log(angle)
+          this.canvas.setRobotAngle(angle);
+        }
+
+        _setStart() {
+          this.status = 'Program Started';
+          this.$.startService.call({start_msg: 'start'});
+        }
+        _handleStartSuccess() {
+          this.status = 'Program Started Success';
+        }
+        _handleStartError(evt) {
+          this.status = 'Error: ' + evt.detail;
+        }
       }
 
-      _handleConnection() {
-        this.status = 'Connected to the websocket server.';
-        console.log(this.status);
-      }
-      _handleClose() {
-        this.status = 'Closed connection to the websocket server.';
-        console.log(this.status);
-      }
-      _handleError() {
-        this.status = 'Error connecting to the websocket server.';
-        console.log(this.status);
-      }
-      _handleTorsoHeight(event) {
-        this.torsoHeightApprox = event.detail.data.toFixed(3);
-      }
-
-      _setStart() {
-        this.status = 'Program Started';
-        this.$.startService.call({start_msg: 'start'});
-      }
-      _handleStartSuccess() {
-        this.status = 'Program Started Success';
-      }
-      _handleStartError(evt) {
-        this.status = 'Error: ' + evt.detail;
-      }
-    }
-
-    window.customElements.define(RobotControllerApp.is, RobotControllerApp);
+      window.customElements.define(RobotControllerApp.is, RobotControllerApp);
+      
   </script>
 </dom-module>

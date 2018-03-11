@@ -10,6 +10,8 @@ add_message_files(
   FILES
   ObjectFeatures.msg
   TennisBallPoses.msg
+  Pose2d.msg
+  Poses2d.msg
 )
 
 generate_messages(

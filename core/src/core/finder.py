@@ -18,10 +18,11 @@ class Finder:
 
     MAP_MOVE_DISTANCE = 1.6
 
-    def __init__(self, planner):
+    def __init__(self, messager, planner):
       self.head = fetch_api.Head()
       self.base = fetch_api.Base()
       self.planner = planner
+      self.messager = messager
       self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
 
       self.robot_point = None # Point
@@ -69,6 +70,8 @@ class Finder:
       self.all_map_points.append(pos10)
       self.all_map_points.append(pos11)
       self.all_map_points.append(pos12)
+      
+      self.messager.publish_anchor_poses(self.all_map_points)
 
     def move_to_current_map_point(self):
       # go along the negative y axis first
@@ -121,9 +124,14 @@ class Finder:
       # (Finder, Pose, string) -> None
       # Takes OBSERVE_TIME_SECS(3) seconds
       print "Finder:", "observing..."
+
+      # MESSAGER USAGE
+      if frame_id == "map":
+        self.messager.publish_look_at_pose(pose.position)
+      else:
+        print "Finder: observing non-map pose, not displaying"
+
       def script():
-        rospy.sleep(Finder.OBSERVE_TIME_SECS)
-      def script2():
         rospy.sleep(Finder.OBSERVE_TIME_SECS)
 
       object_marker = Marker()
@@ -148,6 +156,9 @@ class Finder:
       self.head.look_at(frame_id, pose.position.x, pose.position.y, pose.position.z)
       rospy.sleep(1)
       self.planner.session(script, Finder.OBSERVE_POSE_CONFIDENCE_DROP_RATE, 1.0)
+
+      # MESSAGER USAGE
+      self.messager.publish_look_at_pose(None)
 
     def save_robot_pose_cb(self, robot_pose_msg):
         # (Planner, PoseWithCovarianceStamped) -> None

@@ -29,7 +29,7 @@ def main():
     
     base = fetch_api.Base()
     if command == 'move':                                                                 
-        base.go_forward(value)
+        base.go_forward(value, 0.3)
     elif command == 'rotate':                                                                 
         base.turn(value)                                                      
     else:

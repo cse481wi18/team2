@@ -5,6 +5,7 @@ import actionlib
 import tf.transformations as tft
 import core
 import copy
+import threading
 
 from tf import TransformListener
 from perception_msgs.msg import TennisBallPoses
@@ -40,23 +41,30 @@ def dist_between(x, y):
 class Planner:
     # All poses in Planner are of frame self.frame
     
-    def __init__(self, frame):
+    def __init__(self, messager, frame, message_type):
         # self.header_frame_id = None
         # self.header_init = False
         # self.grabber = core.Grabber()
+        self.update_count = 0
         self.confidence_drop_rate = 1.0
         self.confidence_threshold = 1.0
         self.paused = True
         self.frame = frame
 
+        self.messager = messager
+        self.message_type = message_type
         self.listener = TransformListener(rospy.Duration(10))
 
         self.robot_point = None # Point
         self.all_points_confidences = {} # {Point: double}
-        self.object_pose_sub = rospy.Subscriber('recognizer/object_positions', TennisBallPoses, self.save_ball_poses_cb)
+        self.object_pose_sub = rospy.Subscriber('recognizer/object_positions', TennisBallPoses, self.save_ball_poses_cb_saver)
         self.ordered_ball_pub = rospy.Publisher('/ordered_ball', TennisBallPoses, queue_size=1)
         self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=1)
         self.robot_pose_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.save_robot_pose_cb)
+
+        self.last_ball_poses_msg = None
+
+        set_interval(lambda: self.save_ball_poses_cb(), 0.1)
         
         # self.goal_pub = rospy.Publisher("/move_base_simple/goal", PoseStamped)
         # self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
@@ -68,6 +76,7 @@ class Planner:
         self.confidence_drop_rate = confidence_drop_rate
         self.confidence_threshold = confidence_threshold
         self.paused = False
+        self.update_count = 0
 
     def session(self, fn, confidence_drop_rate, confidence_threshold):
         self.unpause(confidence_drop_rate, confidence_threshold)
@@ -81,6 +90,9 @@ class Planner:
         # return []
 
         # (Planner) -> [?]
+        # if self.update_count < 3:
+        #     return None
+
         while self.all_points_confidences.keys() is [] or self.robot_point is None:
             return []
         points = self.get_high_confidence_points()
@@ -101,6 +113,12 @@ class Planner:
             p.orientation.w = 1
             ordered_object_poses.append(p)
         self.ordered_ball_pub.publish(ordered_object_poses)
+
+        # MESSAGER USAGE
+        if self.message_type == "scan":
+            self.messager.publish_scan_poses(ordered_object_points)
+        elif self.message_type == "observe":
+            self.messager.publish_observe_poses(ordered_object_points)
         
         # Visualize
         i = 100003
@@ -151,16 +169,21 @@ class Planner:
             del self.all_points_confidences[pt]
         print "Planner: reduce confidence result -", len(pts), "out of", len(self.get_high_confidence_points()), "points removed"
 
-    def save_ball_poses_cb(self, msg):
-        # (Planner, TennisBallPoses) -> None
+    def save_ball_poses_cb_saver(self, msg):
+        self.last_ball_poses_msg = msg
 
-        if self.paused:
+    def save_ball_poses_cb(self):
+        # (Planner, TennisBallPoses) -> None
+        msg = copy.deepcopy(self.last_ball_poses_msg)
+        if msg is None or self.paused:
             return
+
+        self.update_count += 1
 
         if len(msg.poses) > 0:
             self.header_frame_id = msg.poses[0].header.frame_id
             # self.last_time_stamp = msg.poses[0].header.stamp
-            self.listener.waitForTransform(self.frame, self.header_frame_id, rospy.Time.now(), rospy.Duration(4.0))
+            self.listener.waitForTransform(self.frame, self.header_frame_id, rospy.Time(0), rospy.Duration(4.0))
 
         new_points = map(lambda p: self.listener.transformPose(self.frame, p).pose.position, msg.poses)
         new_points = filter(lambda p: p.z < 0.5, new_points)
@@ -208,5 +231,25 @@ class Planner:
         # (Planner, PoseWithCovarianceStamped) -> None
         self.robot_point = robot_pose_msg.pose.pose.position
         self.get_pose()
-    
 
+        # MESSAGER USAGE
+        self.messager.publish_robot_pose(self.robot_point)
+        yaw = quaternion_to_angle(robot_pose_msg.pose.pose.orientation)
+        self.messager.publish_robot_orientation(yaw)
+
+
+def quaternion_to_angle(q):
+    """Convert a quaternion _message_ into an angle in radians.
+    The angle represents the yaw.
+    This is not just the z component of the quaternion."""
+    x, y, z, w = q.x, q.y, q.z, q.w
+    roll, pitch, yaw = tft.euler_from_quaternion((x, y, z, w))
+    return yaw
+
+def set_interval(func, sec):
+    def func_wrapper():
+        set_interval(func, sec)
+        func()
+    t = threading.Timer(sec, func_wrapper)
+    t.start()
+    return t
