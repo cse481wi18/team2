@@ -17,7 +17,7 @@ def is_too_close(p1, p2):
     # (Point, Point) -> bool
     difference = np.array([p1.x - p2.x, p1.y - p2.y, p1.z - p2.z])
     dist = np.sqrt(difference.dot(difference))
-    return dist < 0.1
+    return dist < 0.15
 
 def is_close(p1, p2): 
     # (Point, Point) -> bool
@@ -70,6 +70,7 @@ class Planner:
         # self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
 
     def pause(self):
+        print "Planner: update count =", self.update_count
         self.paused = True
 
     def unpause(self, confidence_drop_rate, confidence_threshold):
@@ -81,6 +82,9 @@ class Planner:
     def session(self, fn, confidence_drop_rate, confidence_threshold):
         self.unpause(confidence_drop_rate, confidence_threshold)
         fn()
+        while self.update_count < 15:
+            self.messager.publish_status2("Not enough clouds received. Waiting for more cloud updates... " + str(self.update_count) + "/" + "15")
+            rospy.sleep(0.2)
         self.pause()
 
     def get_high_confidence_points(self):
@@ -170,6 +174,7 @@ class Planner:
         print "Planner: reduce confidence result -", len(pts), "out of", len(self.get_high_confidence_points()), "points removed"
 
     def save_ball_poses_cb_saver(self, msg):
+        self.update_count += 1
         self.last_ball_poses_msg = msg
 
     def save_ball_poses_cb(self):
@@ -177,8 +182,6 @@ class Planner:
         msg = copy.deepcopy(self.last_ball_poses_msg)
         if msg is None or self.paused:
             return
-
-        self.update_count += 1
 
         if len(msg.poses) > 0:
             self.header_frame_id = msg.poses[0].header.frame_id

@@ -34,14 +34,19 @@ def grab_until_no_balls(first_ball_pose):
   # TEMP CODE - ENTER SEPARATE MODE
   print "Core: ENTER LOCAL MODE"
   tmp = copy.deepcopy(planner.all_points_confidences)
-  planner.message_type = ""
+  # planner.message_type = ""
   planner.all_points_confidences = {}
   pose = copy.deepcopy(first_ball_pose)
   # base_link_pose = copy.deepcopy(first_ball_base_link_pose)
+  b = True
   while True:
     messager.publish_status1("Local mode - moving arm to unload position...")
     grabber.goto_pose_unload()
-    # mover.face_pose(pose)
+    messager.publish_status1("Local mode - facing target...")
+    mover.face_pose(pose)
+    messager.publish_status1("Local mode - checking distancing and moving back...")
+    if b:
+      mover.move_back_if_close(pose)
     messager.publish_status1("Local mode - grabbing...")
     grab_res = grabber.grab(pose)
     if grab_res == 1:
@@ -49,21 +54,25 @@ def grab_until_no_balls(first_ball_pose):
       planner.reduce_confidence(pose)
       # TODO: reduce confidence in tmp as well
 
-      messager.publish_status1("Local mode - grab succeeded - getting next pose...")
+      messager.publish_status1("Local mode - grab succeeded - observing to get next pose...")
+      finder.observe_pose(pose, "map")
       all_object_poses = planner.get_pose()
       if all_object_poses is not None and len(all_object_poses) > 0:
         pose = all_object_poses[0]
+        b = True
       else:
         break
 
     elif grab_res == -1:
-      messager.publish_status1("Local mode - no balls visible - getting next pose...")
+      messager.publish_status1("Local mode - no balls visible - observing to get next pose...")
       print "Core: local mode grab failed, no balls visible"
       planner.reduce_confidence(pose)
 
+      finder.observe_pose(pose, "map")
       all_object_poses = planner.get_pose()
       if all_object_poses is not None and len(all_object_poses) > 0:
         pose = all_object_poses[0]
+        b = False
       else:
         break
     else:
@@ -75,6 +84,7 @@ def grab_until_no_balls(first_ball_pose):
       mover.move_to_grab_pose(pose)
       messager.publish_status2("Facing pose...")
       mover.face_pose(pose)
+      b = False
 
 
 
@@ -85,7 +95,7 @@ def grab_until_no_balls(first_ball_pose):
     # base_link_pose = listener.transformPose('/base_link', object_poseStamped).pose
     
   planner.all_points_confidences = tmp
-  planner.message_type = "scan"
+  # planner.message_type = "scan"
   print "Core: EXIT LOCAL MODE"
     # END OF TEMP CODE
 

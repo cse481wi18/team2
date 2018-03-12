@@ -10,7 +10,7 @@ from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, PoseStamped, Poin
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from visualization_msgs.msg import Marker
 
-DISTANCE_BOUND = 0.25
+DISTANCE_BOUND = 0.18
 ADJUST_DISTANCE = -0.1
 
 def quaternion_between(p1, p2):
@@ -64,6 +64,12 @@ class Mover:
 
     #         return self._move_base_client.wait_for_result(rospy.Duration(20.0))
 
+    def move_back_if_close(self, ball_pose):
+        d = dist_between(self.robot_point, ball_pose.position)
+        if d < DISTANCE_BOUND:
+            self.face_pose(ball_pose)
+            self.base.go_forward(ADJUST_DISTANCE, 0.23)
+
     def move_to_grab_pose(self, ball_pose, retry=False):     
         while self.robot_point is None:
             print "Mover: Robot pose not received, sleeping"
@@ -107,11 +113,11 @@ class Mover:
         else:
             d = -dist_between(self.robot_point, pickup_pose.position)
 
-        self.base.go_forward(d, 0.3)
+        self.base.go_forward(d, 0.23)
 
         d1 = dist_between(self.robot_point, ball_pose.position)
         if d1 < DISTANCE_BOUND:
-          self.base.go_forward(ADJUST_DISTANCE, 0.3)
+          self.base.go_forward(ADJUST_DISTANCE, 0.23)
 
         # MESSAGER USAGE
         self.messager.publish_look_at_pose(None)

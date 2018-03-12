@@ -14,7 +14,7 @@ class Finder:
     FIND_HEAD_PANS = [0.5, 0.0, -0.5]
     FIND_HEAD_TILTS = [0.5, 1.0, 1.5]
     FIND_CONFIDENCE_DROP_RATE = 1.0
-    OBSERVE_POSE_CONFIDENCE_DROP_RATE = 0.8
+    OBSERVE_POSE_CONFIDENCE_DROP_RATE = 0.99
 
     MAP_MOVE_DISTANCE = 1.6
 
@@ -109,11 +109,14 @@ class Finder:
 
       degree_sum = 0
       # while degree_sum >= 0 and degree_sum < 360:
+      i = 0
       for pan in Finder.FIND_HEAD_PANS:
         for tilt in Finder.FIND_HEAD_TILTS:
+          self.messager.publish_status2("Observing part " + str(i + 1) + "/" + str(len(Finder.FIND_HEAD_PANS) * len(Finder.FIND_HEAD_TILTS)))
           self.head.pan_tilt(pan, tilt)
           rospy.sleep(0.5)
           self.planner.session(script, Finder.FIND_CONFIDENCE_DROP_RATE, 2.0)
+          i += 1
 
     def move_and_find(self):
       # Move robot to a nearest anchor point

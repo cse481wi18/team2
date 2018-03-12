@@ -66,6 +66,9 @@ class Grabber:
         self.finder.planner = self.planner
         res = self.tmp_planner.get_pose()
 
+        # Add temp planner contents into local planner 
+        # self.planner.all_points_confidences = merge_two_dicts(self.tmp_planner.all_points_confidences, self.planner.all_points_confidences)
+
         # TEMP CODE!
         # self.planner.all_points_confidences = tmp
 
@@ -135,6 +138,7 @@ class Grabber:
             print "Grabber: can't reach unload-pose"
             return 0
         else:
+            self.messager.publish_status2("Reaching pre-unload pose...")
             if self.check_pose(pos_pre_unload) is True:
                 err = self._arm.move_to_pose(pos_pre_unload)
                 if err is None:
@@ -150,6 +154,7 @@ class Grabber:
             self._gripper.open()
             rospy.sleep(0.1)
 
+            self.messager.publish_status2("Reaching pre-grasp pose...")
             if self.check_pose(pos_pre) is True:
                 err = self._arm.move_to_pose(pos_pre)
                 if err is None:
@@ -163,6 +168,7 @@ class Grabber:
 
             rospy.sleep(0.1)
 
+            self.messager.publish_status2("Reaching grasp pose...")
             if self.check_pose(pos_grasp) is True:
                 err = self._arm.move_to_pose(pos_grasp)
                 if err is None:
@@ -175,9 +181,11 @@ class Grabber:
                 return 0
 
             rospy.sleep(0.1)
+            self.messager.publish_status2("Closing gripper...")
             self._gripper.close()
 
             rospy.sleep(0.1)
+            self.messager.publish_status2("Reaching lift pose...")
             if self.check_pose(pos_lift) is True:
                 err = self._arm.move_to_pose(pos_lift)
                 if err is None:
@@ -190,6 +198,7 @@ class Grabber:
                 return 0
 
             rospy.sleep(0.1)
+            self.messager.publish_status2("Reaching pre-unload pose again...")
             if self.check_pose(pos_pre_unload) is True:
                 err = self._arm.move_to_pose(pos_pre_unload)
                 if err is None:
@@ -202,6 +211,7 @@ class Grabber:
                 return 0
 
             rospy.sleep(0.1)
+            self.messager.publish_status2("Reaching unload pose...")
             if self.check_pose(pos_unload) is True:
                 err = self._arm.move_to_pose(pos_unload)
                 if err is None:
@@ -213,6 +223,8 @@ class Grabber:
             else:
                 print "Can't reach unload-pose"
                 return 0
+
+            self.messager.publish_status2("Opening gripper...")
             self._gripper.open()
             return 1
 
@@ -268,3 +280,8 @@ class Grabber:
     def goto_pose_unload(self):
         pos_unload = to_pose_stamped(self.get_pose_unload(None))
         self._arm.move_to_pose(pos_unload)
+
+def merge_two_dicts(x, y):
+    z = x.copy()   # start with x's keys and values
+    z.update(y)    # modifies z with y's keys and values & returns None
+    return z

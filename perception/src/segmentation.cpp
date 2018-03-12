@@ -346,14 +346,14 @@ namespace perception {
       const Object& object = objects[i];
       
       // Recognize the object.
-      std::string name;
-      double confidence;
+      // std::string name;
+      // double confidence;
       //recognizer_.Recognize(object, &name, &confidence);
-      confidence = recognizer_.RecognizeIndex(object, 0);
-      confidence = round(1000 * confidence) / 1000;
+      // confidence = recognizer_.RecognizeIndex(object, 0);
+      // confidence = round(1000 * confidence) / 1000;
 
-      double recognize_threshold;
-      ros::param::param("recognize_threshold", recognize_threshold, 1000.0);
+      // double recognize_threshold;
+      // ros::param::param("recognize_threshold", recognize_threshold, 1000.0);
 
       // ros::Time timestamp = ros::Time::now();
       // Publish qualified objects
@@ -367,7 +367,7 @@ namespace perception {
       }
       ball_poses_pub_.publish(tennis_ball_poses2);
       
-      if (object.radius > 0 && confidence < recognize_threshold) {
+      if (object.radius > 0) {
         // Publish a sphere around it.
         visualization_msgs::Marker object_marker;
         object_marker.ns = "objects";
@@ -384,8 +384,8 @@ namespace perception {
 
         marker_pub_.publish(object_marker);
 
-        std::stringstream ss;
-        ss << name << " (" << confidence << ")";
+        // std::stringstream ss;
+        // ss << name << " (" << confidence << ")";
 
         // Publish the recognition result.
         // visualization_msgs::Marker name_marker;
@@ -408,63 +408,64 @@ namespace perception {
         // name_marker.text = "r = " + convert.str();
 
         // marker_pub_.publish(name_marker);
-      } else if (confidence < recognize_threshold) {
-        // Publish a bounding box around it.
-        visualization_msgs::Marker object_marker;
-        object_marker.ns = "objects";
-        object_marker.id = i;
-        object_marker.header.frame_id = msg.header.frame_id;
-        object_marker.type = visualization_msgs::Marker::CUBE;
-        object_marker.pose = object.pose;
-        object_marker.scale.x = object.dimensions.x;
-        object_marker.scale.y = object.dimensions.y;
-        object_marker.scale.z = object.dimensions.z;
-        object_marker.color.g = 1;
-        object_marker.color.a = 0.2;
-        object_marker.color.b = 1;
+      } 
+      // else if (confidence < recognize_threshold) {
+    //     // Publish a bounding box around it.
+    //     visualization_msgs::Marker object_marker;
+    //     object_marker.ns = "objects";
+    //     object_marker.id = i;
+    //     object_marker.header.frame_id = msg.header.frame_id;
+    //     object_marker.type = visualization_msgs::Marker::CUBE;
+    //     object_marker.pose = object.pose;
+    //     object_marker.scale.x = object.dimensions.x;
+    //     object_marker.scale.y = object.dimensions.y;
+    //     object_marker.scale.z = object.dimensions.z;
+    //     object_marker.color.g = 1;
+    //     object_marker.color.a = 0.2;
+    //     object_marker.color.b = 1;
 
-        marker_pub_.publish(object_marker);
+    //     marker_pub_.publish(object_marker);
 
-        std::stringstream ss;
-        ss << name << " (" << confidence << ")";
+    //     std::stringstream ss;
+    //     ss << name << " (" << confidence << ")";
 
-        // Publish the recognition result.
-        visualization_msgs::Marker name_marker;
-        name_marker.ns = "recognition";
-        name_marker.id = i;
-        name_marker.header.frame_id = msg.header.frame_id;
-        name_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
-        name_marker.pose.position = object.pose.position;
-        name_marker.pose.position.z += 0.1;
-        name_marker.pose.orientation.w = 1;
-        name_marker.scale.x = 0.025;
-        name_marker.scale.y = 0.025;
-        name_marker.scale.z = 0.025;
-        name_marker.color.r = 0;
-        name_marker.color.g = 0;
-        name_marker.color.b = 1.0;
-        name_marker.color.a = 1.0;
-        name_marker.text = ss.str();
+    //     // Publish the recognition result.
+    //     visualization_msgs::Marker name_marker;
+    //     name_marker.ns = "recognition";
+    //     name_marker.id = i;
+    //     name_marker.header.frame_id = msg.header.frame_id;
+    //     name_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    //     name_marker.pose.position = object.pose.position;
+    //     name_marker.pose.position.z += 0.1;
+    //     name_marker.pose.orientation.w = 1;
+    //     name_marker.scale.x = 0.025;
+    //     name_marker.scale.y = 0.025;
+    //     name_marker.scale.z = 0.025;
+    //     name_marker.color.r = 0;
+    //     name_marker.color.g = 0;
+    //     name_marker.color.b = 1.0;
+    //     name_marker.color.a = 1.0;
+    //     name_marker.text = ss.str();
 
-        marker_pub_.publish(name_marker);
-      } else {
-        // Publish an insignificant bounding box around it.
-        visualization_msgs::Marker object_marker;
-        object_marker.ns = "objects";
-        object_marker.id = i;
-        object_marker.header.frame_id = msg.header.frame_id;
-        object_marker.type = visualization_msgs::Marker::CUBE;
-        object_marker.pose = object.pose;
-        object_marker.scale.x = object.dimensions.x;
-        object_marker.scale.y = object.dimensions.y;
-        object_marker.scale.z = object.dimensions.z;
-        object_marker.color.r = 0.3;
-        object_marker.color.g = 0.3;
-        object_marker.color.b = 0.3;
-        object_marker.color.a = 0.2;
+    //     marker_pub_.publish(name_marker);
+    //   } else {
+    //     // Publish an insignificant bounding box around it.
+    //     visualization_msgs::Marker object_marker;
+    //     object_marker.ns = "objects";
+    //     object_marker.id = i;
+    //     object_marker.header.frame_id = msg.header.frame_id;
+    //     object_marker.type = visualization_msgs::Marker::CUBE;
+    //     object_marker.pose = object.pose;
+    //     object_marker.scale.x = object.dimensions.x;
+    //     object_marker.scale.y = object.dimensions.y;
+    //     object_marker.scale.z = object.dimensions.z;
+    //     object_marker.color.r = 0.3;
+    //     object_marker.color.g = 0.3;
+    //     object_marker.color.b = 0.3;
+    //     object_marker.color.a = 0.2;
 
-        marker_pub_.publish(object_marker);
-    }
+    //     marker_pub_.publish(object_marker);
+    // }
 
     // for (std::vector<geometry_msgs::Pose>::const_iterator i = tennis_ball_poses2.poses.begin(); i != tennis_ball_poses2.poses.end(); ++i)
     //   std::cout << *i;
